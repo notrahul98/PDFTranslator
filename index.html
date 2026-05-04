@@ -6,6 +6,7 @@
 <title>PDF Translator — Offline</title>
 <script src="pdf.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
+<script src="tesseract.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -28,8 +29,13 @@
   --error:      #b83232;
   --error-bg:   #fce8e8;
   --warn-color: #725c1a;
+  --info-bg:    #e8f4fd;
+  --info-border:#a8d4f0;
+  --info-text:  #1a5a80;
   --shadow:     0 2px 14px rgba(55,75,25,0.09);
 }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   background: var(--bg);
@@ -51,235 +57,160 @@ body {
 header { text-align: center; margin-bottom: 38px; }
 
 .logo-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-flex; align-items: center; justify-content: center;
   width: 56px; height: 56px;
   background: linear-gradient(140deg, var(--accent), var(--accent2));
-  border-radius: 16px;
-  margin-bottom: 16px;
+  border-radius: 16px; margin-bottom: 16px;
   box-shadow: 0 4px 18px rgba(85,115,54,0.30);
 }
-
 .logo-mark svg { width: 28px; height: 28px; fill: #fff; }
 
-h1 {
-  font-size: clamp(22px, 4vw, 30px);
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
+h1 { font-size: clamp(22px,4vw,30px); font-weight: 700; color: var(--text); letter-spacing: -0.02em; line-height: 1.2; }
 h1 em { font-style: normal; color: var(--accent); }
 
-.subtitle {
-  margin-top: 7px;
-  color: var(--muted);
-  font-size: 13.5px;
-}
+.subtitle { margin-top: 7px; color: var(--muted); font-size: 13.5px; }
 
 .badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--success-bg);
-  color: var(--success);
-  border: 1px solid #aad4b8;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 4px 12px;
-  margin-top: 12px;
-  text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--success-bg); color: var(--success);
+  border: 1px solid #aad4b8; border-radius: 20px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 4px 12px; margin-top: 12px; text-transform: uppercase;
 }
-
-.badge-dot {
-  width: 7px; height: 7px;
-  background: var(--success);
-  border-radius: 50%;
-  animation: blink 2.2s infinite;
-}
-
+.badge-dot { width: 7px; height: 7px; background: var(--success); border-radius: 50%; animation: blink 2.2s infinite; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── Info box ── */
+.info-box {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 12.5px;
+  color: var(--info-text);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.info-box strong { font-weight: 700; }
+.info-box code {
+  background: rgba(26,90,128,0.1);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'Courier New', monospace;
+  font-size: 11.5px;
+}
 
 /* ── Card ── */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: var(--shadow);
-  margin-bottom: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 24px;
+  box-shadow: var(--shadow); margin-bottom: 14px;
 }
-
 .card-label {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
 }
-
-.card-label::before {
-  content: '';
-  width: 18px; height: 2.5px;
-  background: var(--accent-lt);
-  border-radius: 2px;
-}
+.card-label::before { content:''; width:18px; height:2.5px; background:var(--accent-lt); border-radius:2px; }
 
 /* ── Upload area ── */
 .upload-area {
-  border: 2px dashed var(--border2);
-  border-radius: 12px;
-  background: var(--bg2);
-  padding: 32px 20px;
-  text-align: center;
-  transition: border-color .2s, background .2s;
-  cursor: pointer;
+  border: 2px dashed var(--border2); border-radius: 12px;
+  background: var(--bg2); padding: 32px 20px; text-align: center;
+  transition: border-color .2s, background .2s; cursor: pointer;
 }
-
-.upload-area:hover {
-  border-color: var(--accent);
-  background: var(--accent-bg);
-}
-
-.upload-area.drag-over {
-  border-color: var(--accent);
-  background: var(--accent-bg);
-}
+.upload-area:hover, .upload-area.drag-over { border-color: var(--accent); background: var(--accent-bg); }
 
 .upload-icon { font-size: 36px; display: block; margin-bottom: 10px; }
 .upload-hint { font-size: 13.5px; color: var(--text2); margin-bottom: 14px; }
 
 .btn-browse {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 10px 28px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
+  background: var(--accent); color: #fff; border: none;
+  padding: 10px 28px; font-family: inherit; font-size: 14px; font-weight: 600;
+  border-radius: 8px; cursor: pointer;
   transition: background .18s, transform .1s;
   box-shadow: 0 2px 10px rgba(85,115,54,.28);
 }
-
 .btn-browse:hover { background: var(--accent-lt); transform: translateY(-1px); }
 .btn-browse:active { transform: scale(.98); }
-
 .upload-sub { font-size: 12px; color: var(--muted); margin-top: 10px; }
 
 /* ── File pill ── */
 .file-pill {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  background: var(--accent-bg);
-  border: 1px solid #c0d8a6;
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin-top: 10px;
+  display: none; align-items: center; gap: 10px;
+  background: var(--accent-bg); border: 1px solid #c0d8a6;
+  border-radius: 10px; padding: 10px 14px; margin-top: 10px;
 }
-
 .file-pill.show { display: flex; }
 .fp-icon { font-size: 18px; }
 .fp-name { flex:1; font-size:13px; font-weight:600; color:var(--accent2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fp-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+.fp-badge.text-pdf { background:#e0f0e5; color:#386b48; border:1px solid #a8d4b5; }
+.fp-badge.scan-pdf { background:#fff3cd; color:#856404; border:1px solid #ffc107; }
 .fp-remove { background:none; border:none; color:var(--muted2); cursor:pointer; font-size:16px; padding:2px 6px; border-radius:4px; transition:all .15s; line-height:1; }
 .fp-remove:hover { color:var(--error); background:var(--error-bg); }
 
 /* ── Language selectors ── */
-.lang-row {
-  display: grid;
-  grid-template-columns: 1fr 30px 1fr;
-  gap: 10px;
-  align-items: end;
-}
-
+.lang-row { display:grid; grid-template-columns:1fr 30px 1fr; gap:10px; align-items:end; }
 .lang-arrow { color:var(--muted2); font-size:18px; text-align:center; padding-bottom:9px; }
-
 .field label { display:block; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
-
 .field select {
-  width:100%;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 9px 30px 9px 12px;
-  font-family: inherit;
-  font-size: 13.5px;
-  border-radius: 8px;
-  outline: none;
-  appearance: none;
-  cursor: pointer;
-  transition: border-color .2s, box-shadow .2s;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%23849572' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
+  width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+  padding:9px 30px 9px 12px; font-family:inherit; font-size:13.5px;
+  border-radius:8px; outline:none; appearance:none; cursor:pointer;
+  transition:border-color .2s, box-shadow .2s;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%23849572' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 10px center;
 }
+.field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(85,115,54,.13); }
 
-.field select:focus { border-color:var(--accent); box-shadow: 0 0 0 3px rgba(85,115,54,.13); }
+/* ── OCR language note ── */
+.ocr-note {
+  margin-top: 10px;
+  background: #fffbeb;
+  border: 1px solid #f0d060;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #7a5c10;
+  display: none;
+  line-height: 1.6;
+}
+.ocr-note.show { display: block; }
+.ocr-note a { color: #557336; font-weight: 600; }
 
 /* ── Run button ── */
 .btn-run {
-  width: 100%;
-  background: linear-gradient(130deg, var(--accent) 0%, var(--accent2) 100%);
-  color: #fff;
-  border: none;
-  padding: 14px 20px;
-  font-family: inherit;
-  font-size: 14.5px;
-  font-weight: 700;
-  cursor: pointer;
-  border-radius: 10px;
-  transition: all .2s;
-  box-shadow: 0 3px 14px rgba(85,115,54,.32);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
+  width:100%; background:linear-gradient(130deg, var(--accent) 0%, var(--accent2) 100%);
+  color:#fff; border:none; padding:14px 20px; font-family:inherit;
+  font-size:14.5px; font-weight:700; cursor:pointer; border-radius:10px;
+  transition:all .2s; box-shadow:0 3px 14px rgba(85,115,54,.32);
+  display:flex; align-items:center; justify-content:center; gap:9px;
 }
-
-.btn-run:hover:not(:disabled) { box-shadow: 0 5px 22px rgba(85,115,54,.42); transform: translateY(-1px); }
-.btn-run:active:not(:disabled) { transform: scale(.99); }
-.btn-run:disabled { background: var(--muted2); box-shadow: none; cursor: not-allowed; transform: none; }
+.btn-run:hover:not(:disabled) { box-shadow:0 5px 22px rgba(85,115,54,.42); transform:translateY(-1px); }
+.btn-run:active:not(:disabled) { transform:scale(.99); }
+.btn-run:disabled { background:var(--muted2); box-shadow:none; cursor:not-allowed; transform:none; }
 
 /* ── Progress ── */
 .progress-wrap { display:none; margin-top:16px; background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px; }
 .progress-wrap.show { display:block; }
-
 .prog-row { display:flex; justify-content:space-between; margin-bottom:8px; }
 .prog-label { font-size:12px; font-weight:600; color:var(--text2); }
 .prog-pct { font-size:12px; font-weight:700; color:var(--accent); }
-
 .prog-track { height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
 .prog-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-lt)); width:0%; transition:width .35s ease; }
 
 .log {
-  margin-top:12px;
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:8px;
-  padding:10px 13px;
-  font-family:'Courier New',monospace;
-  font-size:11.5px;
-  line-height:2;
-  max-height:120px;
-  overflow-y:auto;
-  color:var(--muted);
+  margin-top:12px; background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; padding:10px 13px; font-family:'Courier New',monospace;
+  font-size:11.5px; line-height:2; max-height:150px; overflow-y:auto; color:var(--muted);
 }
-
 .log span { display:block; }
 .log .ok   { color:var(--success); }
 .log .err  { color:var(--error); }
 .log .info { color:var(--accent2); }
 .log .warn { color:var(--warn-color); font-weight:600; }
+.log .ocr  { color:#b06000; }
 
 /* ── Result ── */
 .result-wrap { display:none; align-items:center; gap:14px; background:var(--success-bg); border:1px solid #a5d0b4; border-radius:12px; padding:16px 20px; margin-top:14px; }
@@ -288,88 +219,71 @@ h1 em { font-style: normal; color: var(--accent); }
 .res-info { flex:1; min-width:0; }
 .res-title { font-size:14px; font-weight:700; color:var(--success); }
 .res-sub { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-.btn-dl {
-  background:var(--success);
-  color:#fff;
-  border:none;
-  padding:9px 18px;
-  font-family:inherit;
-  font-size:13px;
-  font-weight:700;
-  cursor:pointer;
-  border-radius:8px;
-  white-space:nowrap;
-  box-shadow: 0 2px 8px rgba(56,107,72,.28);
-  transition: background .15s, transform .1s;
-}
-
+.btn-dl { background:var(--success); color:#fff; border:none; padding:9px 18px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; border-radius:8px; white-space:nowrap; box-shadow:0 2px 8px rgba(56,107,72,.28); transition:background .15s, transform .1s; }
 .btn-dl:hover { background:#2d5e3c; transform:translateY(-1px); }
 
-/* ── How it works ── */
+/* ── Steps ── */
 .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
 @media(max-width:500px){ .steps{grid-template-columns:1fr} .lang-row{grid-template-columns:1fr} .lang-arrow{display:none} }
-
 .step { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center; }
 .step-num { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; background:var(--accent); color:#fff; border-radius:50%; font-size:11px; font-weight:800; margin-bottom:7px; }
 .step-txt { font-size:12px; color:var(--text2); line-height:1.45; }
 
-/* ── Footer ── */
 footer { margin-top:36px; text-align:center; font-size:11px; color:var(--muted2); line-height:2; }
 footer a { color:var(--muted); text-decoration:none; }
 footer a:hover { color:var(--accent); }
-
-::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <!-- Header -->
   <header>
     <div class="logo-mark">
       <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h5v1.5H8V16zm0-6h2v1.5H8V10z"/></svg>
     </div>
     <h1>PDF <em>Translator</em></h1>
-    <p class="subtitle">Extract · Translate · Save as bilingual PDF</p>
+    <p class="subtitle">Extract · OCR · Translate · Save as bilingual PDF</p>
     <span class="badge"><span class="badge-dot"></span>100% Offline — No Internet Needed</span>
   </header>
 
-  <!-- Step 1: Upload -->
+  <!-- OCR setup notice -->
+  <div class="info-box">
+    <strong>📋 First-time OCR setup:</strong> For scanned PDFs, place these two files in a <code>lang/</code> subfolder next to <code>index.html</code>:<br>
+    <code>lang/ind.traineddata</code> &nbsp;·&nbsp; <code>lang/eng.traineddata</code><br>
+    Download free from:
+    <a href="https://github.com/tesseract-ocr/tessdata_fast" target="_blank" style="color:var(--accent);font-weight:600">github.com/tesseract-ocr/tessdata_fast ↗</a>
+    &nbsp;(~4 MB each). Text-based PDFs work without these files.
+  </div>
+
+  <!-- Step 1 -->
   <div class="card">
     <div class="card-label">Step 1 — Upload PDF</div>
-
-    <!-- Hidden file input -->
     <input type="file" id="fileInput" accept=".pdf" style="display:none">
-
-    <!-- Drop area -->
     <div class="upload-area" id="uploadArea">
       <span class="upload-icon">📄</span>
       <p class="upload-hint">Drag &amp; drop your PDF here</p>
       <button class="btn-browse" id="btnBrowse" type="button">📂 Choose File</button>
-      <p class="upload-sub">PDF only · max 20 MB</p>
+      <p class="upload-sub">PDF only · max 20 MB · text or scanned</p>
     </div>
-
-    <!-- Selected file pill -->
     <div class="file-pill" id="filePill">
       <span class="fp-icon">📎</span>
       <span class="fp-name" id="filePillName"></span>
-      <button class="fp-remove" id="btnRemove" type="button" title="Remove">✕</button>
+      <span class="fp-badge" id="filePillBadge"></span>
+      <button class="fp-remove" id="btnRemove" type="button">✕</button>
     </div>
   </div>
 
-  <!-- Step 2: Languages -->
+  <!-- Step 2 -->
   <div class="card">
     <div class="card-label">Step 2 — Languages</div>
     <div class="lang-row">
       <div class="field">
         <label>From</label>
         <select id="srcLang">
-          <option value="Indonesian (Bahasa Indonesia)" selected>Indonesian (Bahasa)</option>
-          <option value="Malay">Malay</option>
-          <option value="Javanese">Javanese</option>
+          <option value="Indonesian (Bahasa Indonesia)" data-ocr="ind" selected>Indonesian (Bahasa)</option>
+          <option value="Malay" data-ocr="msa">Malay</option>
+          <option value="English" data-ocr="eng">English</option>
         </select>
       </div>
       <div class="lang-arrow">→</div>
@@ -387,18 +301,19 @@ footer a:hover { color:var(--accent); }
         </select>
       </div>
     </div>
+    <div class="ocr-note show" id="ocrNote">
+      ⚠️ <strong>OCR mode:</strong> Requires <code>lang/ind.traineddata</code> in the same folder. If missing, the tool will attempt OCR with English language data as fallback.
+    </div>
   </div>
 
-  <!-- Step 3: Generate -->
+  <!-- Step 3 -->
   <div class="card">
     <div class="card-label">Step 3 — Generate &amp; Download</div>
-
     <button class="btn-run" id="btnRun" disabled type="button">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
       Extract · Translate · Save PDF
     </button>
 
-    <!-- Progress -->
     <div class="progress-wrap" id="progressWrap">
       <div class="prog-row">
         <span class="prog-label" id="progLabel">Processing…</span>
@@ -408,7 +323,6 @@ footer a:hover { color:var(--accent); }
       <div class="log" id="log"></div>
     </div>
 
-    <!-- Result -->
     <div class="result-wrap" id="resultWrap">
       <span class="res-icon">✅</span>
       <div class="res-info">
@@ -423,9 +337,9 @@ footer a:hover { color:var(--accent); }
   <div class="card">
     <div class="card-label">How it works</div>
     <div class="steps">
-      <div class="step"><div class="step-num">1</div><div class="step-txt">pdf.js extracts all text from your PDF locally in the browser</div></div>
-      <div class="step"><div class="step-num">2</div><div class="step-txt">Built-in dictionary maps Indonesian tax terms to English</div></div>
-      <div class="step"><div class="step-num">3</div><div class="step-txt">jsPDF builds a bilingual document saved directly to your device</div></div>
+      <div class="step"><div class="step-num">1</div><div class="step-txt">pdf.js tries to extract real text; if the PDF is scanned, Tesseract.js runs OCR on each page image</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-txt">Built-in dictionary maps Indonesian tax &amp; legal terms to English</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-txt">jsPDF assembles original + translation into one bilingual PDF saved to your device</div></div>
     </div>
   </div>
 
@@ -433,19 +347,19 @@ footer a:hover { color:var(--accent); }
 
 <footer>
   Runs entirely in your browser · No data leaves your device · No API key needed<br>
-  pdf.js by Mozilla · jsPDF by Parallax · <a href="https://github.com" target="_blank">View on GitHub ↗</a>
+  pdf.js by Mozilla · Tesseract.js for OCR · jsPDF by Parallax
 </footer>
 
 <script>
-// ── pdf.js worker (local) ─────────────────────────────────────────────────
+// ── pdf.js worker ─────────────────────────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function ge(id) { return document.getElementById(id); }
 
-// ── State ─────────────────────────────────────────────────────────────────
 var selectedFile = null;
 var outputBlob   = null;
+var pdfType      = null; // 'text' or 'scanned'
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 var fileInput    = ge('fileInput');
@@ -453,6 +367,7 @@ var uploadArea   = ge('uploadArea');
 var btnBrowse    = ge('btnBrowse');
 var filePill     = ge('filePill');
 var filePillName = ge('filePillName');
+var filePillBadge= ge('filePillBadge');
 var btnRemove    = ge('btnRemove');
 var btnRun       = ge('btnRun');
 var progressWrap = ge('progressWrap');
@@ -463,52 +378,61 @@ var logEl        = ge('log');
 var resultWrap   = ge('resultWrap');
 var resSub       = ge('resSub');
 var btnDownload  = ge('btnDownload');
+var srcLangSel   = ge('srcLang');
+var ocrNote      = ge('ocrNote');
+
+// ── Quick-scan to detect text vs scanned PDF ──────────────────────────────
+async function detectPdfType(file) {
+  var buf  = await file.arrayBuffer();
+  var pdf  = await pdfjsLib.getDocument({ data: buf }).promise;
+  var page = await pdf.getPage(1);
+  var content = await page.getTextContent();
+  var text = content.items.map(function(i){ return i.str; }).join('').trim();
+  return text.length > 30 ? 'text' : 'scanned';
+}
 
 // ── File selection ────────────────────────────────────────────────────────
-function acceptFile(file) {
+async function acceptFile(file) {
   if (!file) return;
-  if (file.type !== 'application/pdf') {
-    alert('Please choose a PDF file.');
-    return;
-  }
-  if (file.size > 20 * 1024 * 1024) {
-    alert('File is too large. Maximum size is 20 MB.');
-    return;
-  }
+  if (file.type !== 'application/pdf') { alert('Please choose a PDF file.'); return; }
+  if (file.size > 20 * 1024 * 1024)   { alert('File is too large. Max 20 MB.'); return; }
   selectedFile = file;
-  filePillName.textContent = file.name;
+
+  // Detect type
+  filePillName.textContent  = file.name;
+  filePillBadge.textContent = 'Checking…';
+  filePillBadge.className   = 'fp-badge';
   filePill.classList.add('show');
   btnRun.disabled = false;
-  // Reset previous results
+
+  pdfType = await detectPdfType(file);
+  if (pdfType === 'text') {
+    filePillBadge.textContent = '✓ Text PDF';
+    filePillBadge.className   = 'fp-badge text-pdf';
+    ocrNote.classList.remove('show');
+  } else {
+    filePillBadge.textContent = '⚠ Scanned — OCR needed';
+    filePillBadge.className   = 'fp-badge scan-pdf';
+    ocrNote.classList.add('show');
+  }
+
   resultWrap.classList.remove('show');
   progressWrap.classList.remove('show');
   logEl.innerHTML = '';
 }
 
-// Button click → open file picker
-btnBrowse.addEventListener('click', function() {
-  fileInput.value = '';
-  fileInput.click();
-});
+btnBrowse.addEventListener('click', function() { fileInput.value = ''; fileInput.click(); });
 
-// Make the entire dropzone clickable too
 uploadArea.addEventListener('click', function(e) {
-  if (e.target !== btnBrowse) {
-    fileInput.value = '';
-    fileInput.click();
-  }
+  if (e.target !== btnBrowse) { fileInput.value = ''; fileInput.click(); }
 });
 
-// File picker selection
 fileInput.addEventListener('change', function() {
-  if (fileInput.files && fileInput.files[0]) {
-    acceptFile(fileInput.files[0]);
-  }
+  if (fileInput.files && fileInput.files[0]) acceptFile(fileInput.files[0]);
 });
 
-// Remove file
 btnRemove.addEventListener('click', function() {
-  selectedFile = null;
+  selectedFile = null; pdfType = null;
   filePill.classList.remove('show');
   fileInput.value = '';
   btnRun.disabled = true;
@@ -517,117 +441,192 @@ btnRemove.addEventListener('click', function() {
   logEl.innerHTML = '';
 });
 
-// Drag & drop on upload area
-uploadArea.addEventListener('dragover', function(e) {
-  e.preventDefault();
-  uploadArea.classList.add('drag-over');
+uploadArea.addEventListener('dragover',  function(e) { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+uploadArea.addEventListener('dragleave', function(e) { if (!uploadArea.contains(e.relatedTarget)) uploadArea.classList.remove('drag-over'); });
+uploadArea.addEventListener('drop',      function(e) { e.preventDefault(); uploadArea.classList.remove('drag-over'); if (e.dataTransfer.files[0]) acceptFile(e.dataTransfer.files[0]); });
+
+// Show/hide OCR note based on source language
+srcLangSel.addEventListener('change', function() {
+  if (pdfType === 'scanned') ocrNote.classList.add('show');
 });
 
-uploadArea.addEventListener('dragleave', function(e) {
-  if (!uploadArea.contains(e.relatedTarget)) {
-    uploadArea.classList.remove('drag-over');
-  }
-});
-
-uploadArea.addEventListener('drop', function(e) {
-  e.preventDefault();
-  uploadArea.classList.remove('drag-over');
-  var files = e.dataTransfer.files;
-  if (files && files[0]) acceptFile(files[0]);
-});
-
-// ── Logging & progress ────────────────────────────────────────────────────
+// ── Logging ───────────────────────────────────────────────────────────────
 function addLog(msg, cls) {
-  var span = document.createElement('span');
-  span.className = cls || '';
-  span.textContent = '› ' + msg;
-  logEl.appendChild(span);
+  var s = document.createElement('span');
+  s.className   = cls || '';
+  s.textContent = '› ' + msg;
+  logEl.appendChild(s);
   logEl.scrollTop = logEl.scrollHeight;
 }
 
 function setProgress(pct, label) {
   progFill.style.width = pct + '%';
-  progPct.textContent  = pct + '%';
+  progPct.textContent  = Math.round(pct) + '%';
   if (label) progLabel.textContent = label;
+}
+
+// ── Extract text from text-based PDF ─────────────────────────────────────
+async function extractTextPDF(file) {
+  var buf  = await file.arrayBuffer();
+  var pdf  = await pdfjsLib.getDocument({ data: buf }).promise;
+  var out  = [];
+  for (var i = 1; i <= pdf.numPages; i++) {
+    var page    = await pdf.getPage(i);
+    var content = await page.getTextContent();
+    var lineMap = {};
+    content.items.forEach(function(item) {
+      var y = Math.round(item.transform[5]);
+      if (!lineMap[y]) lineMap[y] = [];
+      lineMap[y].push(item.str);
+    });
+    var ys    = Object.keys(lineMap).map(Number).sort(function(a,b){ return b-a; });
+    var lines = ys.map(function(y){ return lineMap[y].join(' ').replace(/\s+/g,' ').trim(); }).filter(Boolean);
+    out.push(lines.join('\n'));
+  }
+  return out.join('\n\n');
+}
+
+// ── Render PDF page to canvas, return ImageData URL ───────────────────────
+async function renderPageToDataURL(file, pageNum, scale) {
+  scale = scale || 2.5;
+  var buf  = await file.arrayBuffer();
+  var pdf  = await pdfjsLib.getDocument({ data: buf }).promise;
+  var page = await pdf.getPage(pageNum);
+  var vp   = page.getViewport({ scale: scale });
+
+  var canvas    = document.createElement('canvas');
+  canvas.width  = Math.floor(vp.width);
+  canvas.height = Math.floor(vp.height);
+  var ctx = canvas.getContext('2d');
+
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  return { dataUrl: canvas.toDataURL('image/png'), numPages: pdf.numPages };
+}
+
+// ── OCR a single page using Tesseract.js ─────────────────────────────────
+async function ocrPage(dataUrl, ocrLang, onProgress) {
+  var worker = await Tesseract.createWorker(ocrLang, 1, {
+    workerPath:  'tesseract.worker.min.js',
+    corePath:    'tesseract-core-lstm.js',
+    langPath:    'lang',
+    logger:      function(m) {
+      if (m.status === 'recognizing text' && onProgress) {
+        onProgress(Math.round(m.progress * 100));
+      }
+    }
+  });
+  var result = await worker.recognize(dataUrl);
+  await worker.terminate();
+  return result.data.text;
+}
+
+// ── Extract text from scanned PDF via OCR ────────────────────────────────
+async function extractTextOCR(file, ocrLang, onPageProgress) {
+  var buf     = await file.arrayBuffer();
+  var pdf     = await pdfjsLib.getDocument({ data: buf }).promise;
+  var numPages = pdf.numPages;
+  var allText = [];
+
+  for (var i = 1; i <= numPages; i++) {
+    addLog('OCR page ' + i + ' of ' + numPages + '…', 'ocr');
+    onPageProgress(i, numPages);
+
+    // Render to canvas
+    var page = await pdf.getPage(i);
+    var vp   = page.getViewport({ scale: 2.5 });
+    var canvas    = document.createElement('canvas');
+    canvas.width  = Math.floor(vp.width);
+    canvas.height = Math.floor(vp.height);
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    var dataUrl = canvas.toDataURL('image/png');
+
+    var text = await ocrPage(dataUrl, ocrLang, function(pct) {
+      setProgress(
+        30 + ((i - 1 + pct / 100) / numPages) * 40,
+        'OCR page ' + i + '/' + numPages + ' (' + pct + '%)'
+      );
+    });
+    allText.push(text.trim());
+  }
+  return allText.join('\n\n');
 }
 
 // ── Translation dictionary ────────────────────────────────────────────────
 var PHRASES = [
-  ["Kementerian Keuangan Republik Indonesia", "Ministry of Finance of the Republic of Indonesia"],
-  ["Direktorat Jenderal Pajak", "Directorate General of Taxes"],
-  ["Kanwil DJP Jakarta Utara", "Regional Office of DJP North Jakarta"],
-  ["Kantor Pelayanan Pajak Pratama Jakarta Kelapa Gading", "Primary Tax Service Office Jakarta Kelapa Gading"],
-  ["Kantor Pelayanan Pajak Pratama", "Primary Tax Service Office"],
-  ["Kantor Pelayanan Pajak", "Tax Service Office"],
-  ["Kepala Kantor", "Head of Office"],
-  ["Kepala Seksi Pengawasan", "Head of Supervision Section"],
-  ["Kepala Seksi", "Head of Section"],
-  ["Pejabat pendamping", "Accompanying Official"],
-  ["Permintaan Penjelasan atas Data dan/atau Keterangan", "Request for Explanation of Data and/or Information"],
-  ["Ditandatangani secara elektronik", "Signed electronically"],
-  ["Yth. Pimpinan", "To the Director of"],
-  ["Yth.", "To"],
-  ["Gedung", "Building"],
-  ["Lantai", "Floor"],
-  ["Kota Administrasi Jakarta Utara", "North Jakarta Administrative City"],
-  ["Daerah Khusus Ibukota Jakarta", "Special Capital Region of Jakarta"],
-  ["Nomor", "Number"],
-  ["Sifat", "Nature"],
-  ["Rahasia", "Confidential"],
-  ["Lampiran", "Attachment"],
-  ["Satu set", "One set"],
-  ["Kami mengucapkan terima kasih dan memberikan apresiasi atas partisipasi dan kepedulian Saudara dalam memenuhi kewajiban pajak Saudara/perusahaan Saudara selama ini.", "We extend our gratitude and appreciation for your participation and commitment in fulfilling your/your company's tax obligations thus far."],
-  ["Pajak yang Saudara bayarkan merupakan sumber utama pembiayaan Anggaran Pendapatan dan Belanja Negara (APBN) Indonesia.", "The taxes you pay are the primary source of funding for Indonesia's State Revenue and Expenditure Budget (APBN)."],
-  ["Menindaklanjuti data pada administrasi Direktorat Jenderal Pajak, dengan ini disampaikan beberapa hal sebagai berikut.", "Following up on the data in the administration of the Directorate General of Taxes, we hereby convey the following matters."],
-  ["Berdasarkan penelitian terhadap data dan/atau keterangan yang kami miliki dan/atau kami peroleh untuk tahun pajak", "Based on an examination of the data and/or information we have and/or obtained for the tax year"],
-  ["diketahui bahwa:", "it is known that:"],
-  ["Terdapat Equalisasi biaya gaji yang perlu dikonfirmasi", "There is a Salary Expense Equalization that needs to be confirmed"],
-  ["Terdapat Equalisasi biaya jasa yang perlu dikonfirmasi", "There is a Service Fee Equalization that needs to be confirmed"],
-  ["Terdapat Equalisasi Biaya Jasa Konstruksi yang perlu dikonfirmasi", "There is a Construction Service Expense Equalization that needs to be confirmed"],
-  ["Wajib Pajak diminta menyampaikan rincian persediaan, danpenjelasan atas gudang yg digunakan (karena tidak ada aktiva/biaya sewa gudang)", "The Taxpayer is requested to provide an inventory breakdown and explanation of the warehouse used (no fixed assets/warehouse rental expenses recorded)"],
-  ["Wajib Pajak diminta menyampaikan penjelasan atas uang muka pembelian 6M di 2022 namun tidak tercatat lagi di tahun 2023", "The Taxpayer is requested to explain the purchase advance of IDR 6M in 2022 no longer recorded in 2023"],
-  ["Ada pengurangan aktiva tetap di neraca,indikasi penjualan aktiva tetap lainnya", "There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
-  ["Ada pengurangan aktiva tetap di neraca, indikasi penjualan aktiva tetap lainnya", "There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
-  ["Wajib Pajak diminta menyampaikan penjelasan atas pengurangan hutang pajak 850 juta", "The Taxpayer is requested to explain the reduction of tax payable by IDR 850 million"],
-  ["Terkait utang ke non bank, diminta penjelasan atas biaya bunganya", "Regarding non-bank debt, an explanation of the related interest expense is requested"],
-  ["Terdapat data/ keterangan lain yang perlu dikonfirmasi", "There is other data/information that needs to be confirmed"],
-  ["Terdapat data/keterangan lain yang perlu dikonfirmasi", "There is other data/information that needs to be confirmed"],
-  ["Memperhatikan hal di atas, kami berharap Saudara atau pihak yang diberi kuasa khusus sesuai dengan peraturan mengenai pelaksanaan hak dan pemenuhan kewajiban seorang kuasa di bidang perpajakan, dapat memberikan penjelasan kepada kami atas data dan/atau keterangan yang dimaksud, dalam waktu 14 (empat belas) hari kalender sejak tanggal surat, tanggal kirim surat, atau tanggal surat ini diserahkan secara langsung.", "In view of the above, we request that you or a duly authorized representative provide an explanation of the aforementioned data and/or information within 14 (fourteen) calendar days from the date of this letter, the date of dispatch, or the date this letter is delivered in person."],
-  ["Penjelasan atas data dan/atau keterangan di atas dapat dilakukan melalui penjelasan tertulis, tatap muka langsung, atau tatap muka melalui media audiovisual.", "Explanations may be submitted through written explanation, in-person meeting, or face-to-face meeting via audiovisual media."],
-  ["Penjelasan secara tertulis dapat berupa surat yang ditujukan kepada kepala Kantor Pelayanan Pajak (KPP), yang dapat disampaikan secara langsung ke KPP, dikirimkan melalui faksimile, atau dikirimkan melalui jasa pos/ekspedisi/kurir dengan bukti pengiriman surat.", "A written explanation may be a letter addressed to the Head of the Tax Service Office (KPP), submitted directly, via facsimile, or via postal/courier service with proof of delivery."],
-  ["Dalam hal Saudara hendak menyampaikan penjelasan, mengajukan pertanyaan, atau memerlukan informasi lebih lanjut, Saudara dapat menghubungi Account Representative dan/atau pejabat pendamping sebagai berikut.", "Should you wish to provide an explanation, ask questions, or need further information, you may contact the Account Representative and/or accompanying official as follows."],
-  ["Apabila dalam pelaksanaan tugas ini terdapat pegawai Direktorat Jenderal Pajak yang meminta dan/atau menerima barang/uang/fasilitas apa pun dari wajib pajak agar dilaporkan melalui Kring Pajak 1500200, telepon (021) 52970777, surel pengaduan@pajak.go.id, laman https://pengaduan.pajak.go.id, atau laman https://wise.kemenkeu.go.id.", "Should any Directorate General of Taxes employee request/receive goods/money/facilities from the taxpayer, please report via Tax Hotline 1500200, phone (021) 52970777, email pengaduan@pajak.go.id, or website https://pengaduan.pajak.go.id."],
-  ["Kepedulian dan peran aktif Saudara dalam melaksanakan kewajiban perpajakan sangat kami hargai.", "Your concern and active role in fulfilling your tax obligations are greatly appreciated."],
-  ["Atas perhatian dan kerja sama Saudara, kami ucapkan terima kasih.", "We thank you for your attention and cooperation."],
-  ["Dokumen ini dikeluarkan secara elektronik dan tidak memerlukan tandatangan atau cap basah. Validasi terhadap dokumen ini dapat dilakukan dengan memindai QR Code diatas melalui aplikasi mobile M-Pajak.", "This document was issued electronically and does not require a wet signature or stamp. It can be validated by scanning the QR Code using the M-Pajak mobile application."],
-  ["nama", "name"],
-  ["jabatan", "position"],
-  ["informasi kontak", "contact information"],
-  ["dan/atau", "and/or"],
-  ["telepon", "phone"],
-  ["faksimile", "facsimile"],
-  ["surel", "email"],
-  ["laman", "website"],
-  ["tahun pajak", "tax year"],
-  ["wajib pajak", "taxpayer"],
-  ["Wajib Pajak", "Taxpayer"],
-  ["aktiva tetap", "fixed assets"],
-  ["hutang pajak", "tax payable"],
-  ["uang muka", "advance payment"],
-  ["biaya gaji", "salary expense"],
-  ["biaya jasa", "service fee"],
-  ["biaya bunga", "interest expense"],
-  ["persediaan", "inventory"],
-  ["pengurangan", "reduction"],
-  ["penjelasan", "explanation"],
-  ["penjualan", "sale"],
-  ["pembelian", "purchase"],
-  ["neraca", "balance sheet"],
-  ["sewa gudang", "warehouse rental"],
-  ["juta", "million"],
-  ["miliar", "billion"],
-  ["hari kalender", "calendar days"],
-  ["empat belas", "fourteen"]
+  ["Kementerian Keuangan Republik Indonesia","Ministry of Finance of the Republic of Indonesia"],
+  ["Direktorat Jenderal Pajak","Directorate General of Taxes"],
+  ["Kanwil DJP Jakarta Utara","Regional Office of DJP North Jakarta"],
+  ["Kantor Pelayanan Pajak Pratama Jakarta Kelapa Gading","Primary Tax Service Office Jakarta Kelapa Gading"],
+  ["Kantor Pelayanan Pajak Pratama","Primary Tax Service Office"],
+  ["Kantor Pelayanan Pajak","Tax Service Office"],
+  ["Kepala Kantor","Head of Office"],
+  ["Kepala Seksi Pengawasan","Head of Supervision Section"],
+  ["Kepala Seksi","Head of Section"],
+  ["Pejabat pendamping","Accompanying Official"],
+  ["Permintaan Penjelasan atas Data dan/atau Keterangan","Request for Explanation of Data and/or Information"],
+  ["Ditandatangani secara elektronik","Signed electronically"],
+  ["Yth. Pimpinan","To the Director of"],
+  ["Yth.","To"],
+  ["Gedung","Building"],
+  ["Lantai","Floor"],
+  ["Kota Administrasi Jakarta Utara","North Jakarta Administrative City"],
+  ["Daerah Khusus Ibukota Jakarta","Special Capital Region of Jakarta"],
+  ["Nomor","Number"],
+  ["Sifat","Nature"],
+  ["Rahasia","Confidential"],
+  ["Lampiran","Attachment"],
+  ["Satu set","One set"],
+  ["Kami mengucapkan terima kasih dan memberikan apresiasi atas partisipasi dan kepedulian Saudara dalam memenuhi kewajiban pajak Saudara/perusahaan Saudara selama ini.","We extend our gratitude and appreciation for your participation and commitment in fulfilling your/your company's tax obligations thus far."],
+  ["Pajak yang Saudara bayarkan merupakan sumber utama pembiayaan Anggaran Pendapatan dan Belanja Negara (APBN) Indonesia.","The taxes you pay are the primary source of funding for Indonesia's State Revenue and Expenditure Budget (APBN)."],
+  ["Menindaklanjuti data pada administrasi Direktorat Jenderal Pajak, dengan ini disampaikan beberapa hal sebagai berikut.","Following up on the data in the administration of the Directorate General of Taxes, we hereby convey the following matters."],
+  ["Berdasarkan penelitian terhadap data dan/atau keterangan yang kami miliki dan/atau kami peroleh untuk tahun pajak","Based on an examination of the data and/or information we have and/or obtained for the tax year"],
+  ["diketahui bahwa:","it is known that:"],
+  ["Terdapat Equalisasi biaya gaji yang perlu dikonfirmasi","There is a Salary Expense Equalization that needs to be confirmed"],
+  ["Terdapat Equalisasi biaya jasa yang perlu dikonfirmasi","There is a Service Fee Equalization that needs to be confirmed"],
+  ["Terdapat Equalisasi Biaya Jasa Konstruksi yang perlu dikonfirmasi","There is a Construction Service Expense Equalization that needs to be confirmed"],
+  ["Wajib Pajak diminta menyampaikan rincian persediaan, danpenjelasan atas gudang yg digunakan (karena tidak ada aktiva/biaya sewa gudang)","The Taxpayer is requested to provide an inventory breakdown and explanation of the warehouse used (no fixed assets/warehouse rental recorded)"],
+  ["Wajib Pajak diminta menyampaikan penjelasan atas uang muka pembelian 6M di 2022 namun tidak tercatat lagi di tahun 2023","The Taxpayer is requested to explain the purchase advance of IDR 6M in 2022 no longer recorded in 2023"],
+  ["Ada pengurangan aktiva tetap di neraca,indikasi penjualan aktiva tetap lainnya","There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
+  ["Ada pengurangan aktiva tetap di neraca, indikasi penjualan aktiva tetap lainnya","There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
+  ["Wajib Pajak diminta menyampaikan penjelasan atas pengurangan hutang pajak 850 juta","The Taxpayer is requested to explain the reduction of tax payable by IDR 850 million"],
+  ["Terkait utang ke non bank, diminta penjelasan atas biaya bunganya","Regarding non-bank debt, an explanation of the related interest expense is requested"],
+  ["Terdapat data/ keterangan lain yang perlu dikonfirmasi","There is other data/information that needs to be confirmed"],
+  ["Terdapat data/keterangan lain yang perlu dikonfirmasi","There is other data/information that needs to be confirmed"],
+  ["Memperhatikan hal di atas, kami berharap Saudara atau pihak yang diberi kuasa khusus sesuai dengan peraturan mengenai pelaksanaan hak dan pemenuhan kewajiban seorang kuasa di bidang perpajakan, dapat memberikan penjelasan kepada kami atas data dan/atau keterangan yang dimaksud, dalam waktu 14 (empat belas) hari kalender sejak tanggal surat, tanggal kirim surat, atau tanggal surat ini diserahkan secara langsung.","In view of the above, we request that you or a duly authorized representative provide an explanation within 14 (fourteen) calendar days from the date of this letter."],
+  ["Penjelasan atas data dan/atau keterangan di atas dapat dilakukan melalui penjelasan tertulis, tatap muka langsung, atau tatap muka melalui media audiovisual.","Explanations may be submitted through written explanation, in-person meeting, or face-to-face via audiovisual media."],
+  ["Penjelasan secara tertulis dapat berupa surat yang ditujukan kepada kepala Kantor Pelayanan Pajak (KPP), yang dapat disampaikan secara langsung ke KPP, dikirimkan melalui faksimile, atau dikirimkan melalui jasa pos/ekspedisi/kurir dengan bukti pengiriman surat.","A written explanation may be a letter to the Head of the Tax Service Office (KPP), submitted directly, via facsimile, or via postal/courier service with proof of delivery."],
+  ["Dalam hal Saudara hendak menyampaikan penjelasan, mengajukan pertanyaan, atau memerlukan informasi lebih lanjut, Saudara dapat menghubungi Account Representative dan/atau pejabat pendamping sebagai berikut.","Should you wish to provide an explanation or need further information, you may contact the Account Representative and/or accompanying official as follows."],
+  ["Kepedulian dan peran aktif Saudara dalam melaksanakan kewajiban perpajakan sangat kami hargai.","Your concern and active role in fulfilling your tax obligations are greatly appreciated."],
+  ["Atas perhatian dan kerja sama Saudara, kami ucapkan terima kasih.","We thank you for your attention and cooperation."],
+  ["Dokumen ini dikeluarkan secara elektronik dan tidak memerlukan tandatangan atau cap basah.","This document was issued electronically and does not require a wet signature or stamp."],
+  ["nama","name"],
+  ["jabatan","position"],
+  ["informasi kontak","contact information"],
+  ["dan/atau","and/or"],
+  ["telepon","phone"],
+  ["faksimile","facsimile"],
+  ["surel","email"],
+  ["laman","website"],
+  ["tahun pajak","tax year"],
+  ["wajib pajak","taxpayer"],
+  ["Wajib Pajak","Taxpayer"],
+  ["aktiva tetap","fixed assets"],
+  ["hutang pajak","tax payable"],
+  ["uang muka","advance payment"],
+  ["biaya gaji","salary expense"],
+  ["biaya jasa","service fee"],
+  ["biaya bunga","interest expense"],
+  ["persediaan","inventory"],
+  ["pengurangan","reduction"],
+  ["penjelasan","explanation"],
+  ["penjualan","sale"],
+  ["pembelian","purchase"],
+  ["neraca","balance sheet"],
+  ["sewa gudang","warehouse rental"],
+  ["juta","million"],
+  ["miliar","billion"],
+  ["hari kalender","calendar days"],
+  ["empat belas","fourteen"]
 ];
 
 function translateToEnglish(text) {
@@ -635,24 +634,19 @@ function translateToEnglish(text) {
   for (var i = 0; i < PHRASES.length; i++) {
     var from = PHRASES[i][0];
     var to   = PHRASES[i][1];
-    // Simple global split/join for literal replacement (no regex needed)
-    while (t.indexOf(from) !== -1) {
-      t = t.split(from).join(to);
-    }
+    while (t.indexOf(from) !== -1) { t = t.split(from).join(to); }
   }
-  // Common word fallbacks
   var words = {
-    "dan":"and", "atau":"or", "dari":"from", "dalam":"within", "pada":"at",
-    "untuk":"for", "kepada":"to", "oleh":"by", "juga":"also", "telah":"has",
-    "serta":"as well as", "agar":"so that", "sejak":"since", "apabila":"if",
-    "hendak":"wish to", "dapat":"may", "melalui":"via", "secara":"in a",
-    "langsung":"directly", "tertulis":"written", "dilaporkan":"reported",
-    "barang":"goods", "uang":"money", "fasilitas":"facilities",
-    "pegawai":"employee", "peraturan":"regulations", "hak":"rights",
-    "kewajiban":"obligations", "dengan":"with", "tidak":"not",
-    "karena":"because", "digunakan":"used", "tercatat":"recorded",
-    "indikasi":"indicating", "nomor":"number", "surat":"letter",
-    "tanggal":"date", "waktu":"time"
+    "dan":"and","atau":"or","dari":"from","dalam":"within","pada":"at",
+    "untuk":"for","kepada":"to","oleh":"by","juga":"also","telah":"has",
+    "serta":"as well as","agar":"so that","sejak":"since","apabila":"if",
+    "hendak":"wish to","dapat":"may","melalui":"via","secara":"in a",
+    "langsung":"directly","tertulis":"written","dilaporkan":"reported",
+    "barang":"goods","uang":"money","fasilitas":"facilities",
+    "pegawai":"employee","peraturan":"regulations","hak":"rights",
+    "kewajiban":"obligations","perpajakan":"taxation","dengan":"with",
+    "tidak":"not","karena":"because","digunakan":"used","tercatat":"recorded",
+    "indikasi":"indicating","surat":"letter","tanggal":"date","waktu":"time"
   };
   t = t.replace(/\b(\w+)\b/g, function(m) {
     return words[m.toLowerCase()] !== undefined ? words[m.toLowerCase()] : m;
@@ -668,31 +662,8 @@ function translate(text, srcLang, tgtLang) {
   return eng;
 }
 
-// ── Extract text from PDF ─────────────────────────────────────────────────
-async function extractText(file) {
-  var buf = await file.arrayBuffer();
-  var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-  var pages = [];
-  for (var i = 1; i <= pdf.numPages; i++) {
-    var page    = await pdf.getPage(i);
-    var content = await page.getTextContent();
-    var lineMap = {};
-    content.items.forEach(function(item) {
-      var y = Math.round(item.transform[5]);
-      if (!lineMap[y]) lineMap[y] = [];
-      lineMap[y].push(item.str);
-    });
-    var ys = Object.keys(lineMap).map(Number).sort(function(a,b){ return b - a; });
-    var lines = ys.map(function(y) {
-      return lineMap[y].join(' ').replace(/\s+/g,' ').trim();
-    }).filter(Boolean);
-    pages.push(lines.join('\n'));
-  }
-  return pages.join('\n\n');
-}
-
 // ── Build bilingual PDF ───────────────────────────────────────────────────
-function buildPDF(original, translated, srcLang, tgtLang) {
+function buildPDF(original, translated, srcLang, tgtLang, wasOCR) {
   var doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
   var W   = doc.internal.pageSize.getWidth();
   var H   = doc.internal.pageSize.getHeight();
@@ -700,82 +671,62 @@ function buildPDF(original, translated, srcLang, tgtLang) {
   var y   = 18;
 
   function newPage() { doc.addPage(); y = 18; }
-  function check(n)  { n = n || 7; if (y + n > H - 14) newPage(); }
+  function check(n)  { if (y + (n||7) > H - 14) newPage(); }
 
   function banner(label, r, g, b) {
     check(10);
-    doc.setFillColor(r, g, b);
-    doc.rect(ML, y, PW, 8, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.text(label, ML + 4, y + 5.5);
-    y += 11;
-    doc.setTextColor(30, 30, 30);
+    doc.setFillColor(r,g,b); doc.rect(ML,y,PW,8,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+    doc.text(label, ML+4, y+5.5);
+    y += 11; doc.setTextColor(30,30,30);
   }
 
   function writePara(text, size, style, indent, color) {
-    size   = size   || 9;
-    style  = style  || 'normal';
-    indent = indent || 0;
-    color  = color  || [35, 35, 35];
-    doc.setFont('helvetica', style);
-    doc.setFontSize(size);
-    doc.setTextColor(color[0], color[1], color[2]);
-    var lines = doc.splitTextToSize(text, PW - indent);
-    for (var i = 0; i < lines.length; i++) {
-      check(5);
-      doc.text(lines[i], ML + indent, y);
-      y += 5;
-    }
+    doc.setFont('helvetica', style||'normal'); doc.setFontSize(size||9);
+    doc.setTextColor((color||[35,35,35])[0],(color||[35,35,35])[1],(color||[35,35,35])[2]);
+    var lines = doc.splitTextToSize(text, PW-(indent||0));
+    for (var i=0;i<lines.length;i++){ check(5); doc.text(lines[i],ML+(indent||0),y); y+=5; }
     y += 1.5;
   }
 
   function renderText(text) {
     var paras = text.split(/\n+/);
-    for (var i = 0; i < paras.length; i++) {
-      var t = paras[i].trim();
-      if (!t) { y += 2; continue; }
-      var allCaps  = (t === t.toUpperCase() && t.length > 6 && /[A-Z]/.test(t));
+    for (var i=0;i<paras.length;i++) {
+      var t = paras[i].trim(); if (!t){y+=2;continue;}
+      var allCaps  = (t===t.toUpperCase()&&t.length>6&&/[A-Z]/.test(t));
       var numbered = /^\d+[\.\)]\s/.test(t);
-      var lettered = /^[a-zA-Z][\.\)]\s/.test(t) && t.length < 200;
-      if      (allCaps)  writePara(t, 8.5, 'bold',   0, [20,20,20]);
-      else if (numbered) writePara(t, 9,   'normal',  0, [25,25,25]);
-      else if (lettered) writePara(t, 9,   'normal',  6, [40,40,40]);
-      else               writePara(t, 9,   'normal',  0, [35,35,35]);
+      var lettered = /^[a-zA-Z][\.\)]\s/.test(t)&&t.length<200;
+      if      (allCaps)  writePara(t,8.5,'bold',  0,[20,20,20]);
+      else if (numbered) writePara(t,9,  'normal', 0,[25,25,25]);
+      else if (lettered) writePara(t,9,  'normal', 6,[40,40,40]);
+      else               writePara(t,9,  'normal', 0,[35,35,35]);
     }
   }
 
   // Title
   doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(60,100,40);
-  doc.text('BILINGUAL PDF TRANSLATION', W/2, y, { align:'center' }); y += 6;
+  doc.text('BILINGUAL PDF TRANSLATION', W/2, y, {align:'center'}); y+=6;
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(140,140,140);
-  var dateStr = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-  doc.text(srcLang + '  \u2192  ' + tgtLang + '   \u00B7   ' + dateStr, W/2, y, { align:'center' });
-  y += 3;
-  doc.setDrawColor(155,195,120); doc.setLineWidth(0.5); doc.line(ML, y+2, W-MR, y+2); y += 8;
+  var note = wasOCR ? ' (OCR)' : ' (text)';
+  doc.text(srcLang+note+' \u2192 '+tgtLang+'   \u00B7   '+new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}), W/2, y, {align:'center'});
+  y+=3; doc.setDrawColor(155,195,120); doc.setLineWidth(0.5); doc.line(ML,y+2,W-MR,y+2); y+=8;
 
-  banner('ORIGINAL \u2014 ' + srcLang.toUpperCase(), 78, 108, 48);
+  banner('ORIGINAL \u2014 '+srcLang.toUpperCase(), 78,108,48);
   renderText(original);
-
-  y += 4;
-  doc.setDrawColor(195,212,178); doc.setLineWidth(0.4); doc.line(ML, y, W-MR, y); y += 6;
-
-  banner('TRANSLATION \u2014 ' + tgtLang.toUpperCase(), 36, 96, 66);
+  y+=4; doc.setDrawColor(195,212,178); doc.setLineWidth(0.4); doc.line(ML,y,W-MR,y); y+=6;
+  banner('TRANSLATION \u2014 '+tgtLang.toUpperCase(), 36,96,66);
   renderText(translated);
 
-  // Page numbers
   var total = doc.internal.getNumberOfPages();
-  for (var p = 1; p <= total; p++) {
-    doc.setPage(p);
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(185,185,185);
-    doc.text(p + ' / ' + total, W - MR, H - 7, { align:'right' });
-    doc.text('PDF Translator \u2014 offline tool', ML, H - 7);
+  for (var p=1;p<=total;p++) {
+    doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(185,185,185);
+    doc.text(p+' / '+total, W-MR, H-7, {align:'right'});
+    doc.text('PDF Translator \u2014 offline'+(wasOCR?' (OCR)':''), ML, H-7);
   }
   return doc;
 }
 
-// ── Run button ────────────────────────────────────────────────────────────
+// ── Run ───────────────────────────────────────────────────────────────────
 btnRun.addEventListener('click', async function() {
   outputBlob = null;
   resultWrap.classList.remove('show');
@@ -784,28 +735,59 @@ btnRun.addEventListener('click', async function() {
   btnRun.disabled = true;
   setProgress(0, 'Starting…');
 
-  var srcLang  = ge('srcLang').value;
-  var tgtLang  = ge('tgtLang').value;
-  var base     = selectedFile.name.replace(/\.pdf$/i, '');
-  var outName  = base + '_bilingual_' + tgtLang.split(' ')[0] + '.pdf';
+  var srcLang = srcLangSel.value;
+  var tgtLang = ge('tgtLang').value;
+  var ocrLang = srcLangSel.options[srcLangSel.selectedIndex].getAttribute('data-ocr') || 'ind';
+  var base    = selectedFile.name.replace(/\.pdf$/i,'');
+  var outName = base + '_bilingual_' + tgtLang.split(' ')[0] + '.pdf';
+  var wasOCR  = false;
 
   try {
-    addLog('Reading PDF file…', 'info');
-    setProgress(10, 'Extracting text…');
-    var rawText = await extractText(selectedFile);
-    addLog('Extracted ' + rawText.length.toLocaleString() + ' characters', 'ok');
-    setProgress(45, 'Translating…');
+    var rawText = '';
+
+    if (pdfType === 'text') {
+      // ── Text PDF path ──
+      addLog('Text-based PDF detected — extracting directly…', 'info');
+      setProgress(10, 'Extracting text…');
+      rawText = await extractTextPDF(selectedFile);
+      addLog('Extracted ' + rawText.length.toLocaleString() + ' characters', 'ok');
+      setProgress(40, 'Translating…');
+    } else {
+      // ── Scanned PDF path ──
+      addLog('Scanned PDF detected — starting OCR…', 'ocr');
+      addLog('Loading Tesseract OCR engine (' + ocrLang + ')…', 'ocr');
+      setProgress(10, 'Loading OCR engine…');
+      wasOCR = true;
+      try {
+        rawText = await extractTextOCR(
+          selectedFile,
+          ocrLang,
+          function(page, total) { setProgress(30 + (page/total)*40, 'OCR page '+page+'/'+total+'…'); }
+        );
+        addLog('OCR complete — ' + rawText.length.toLocaleString() + ' characters', 'ok');
+      } catch(ocrErr) {
+        // Fallback to eng if ind.traineddata is missing
+        addLog('OCR failed with "' + ocrLang + '" — retrying with "eng" fallback…', 'warn');
+        rawText = await extractTextOCR(
+          selectedFile,
+          'eng',
+          function(page, total) { setProgress(30+(page/total)*40, 'OCR (eng fallback) '+page+'/'+total); }
+        );
+        addLog('OCR fallback complete — ' + rawText.length.toLocaleString() + ' characters', 'ok');
+      }
+      setProgress(72, 'Translating…');
+    }
 
     addLog('Applying ' + srcLang + ' \u2192 ' + tgtLang + ' translation…', 'info');
     var translated = translate(rawText, srcLang, tgtLang);
     addLog('Translation complete', 'ok');
-    setProgress(72, 'Building PDF…');
+    setProgress(85, 'Building PDF…');
 
     addLog('Assembling bilingual PDF…', 'info');
-    var doc = buildPDF(rawText, translated, srcLang, tgtLang);
+    var doc = buildPDF(rawText, translated, srcLang, tgtLang, wasOCR);
     outputBlob = doc.output('blob');
     addLog('PDF built: ' + outName, 'ok');
-    setProgress(100, 'Done ✓');
+    setProgress(100, 'Done \u2713');
 
     resSub.textContent = outName;
     resultWrap.classList.add('show');
@@ -813,19 +795,15 @@ btnRun.addEventListener('click', async function() {
     btnDownload.onclick = function() {
       var url = URL.createObjectURL(outputBlob);
       var a   = document.createElement('a');
-      a.href  = url;
-      a.download = outName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href  = url; a.download = outName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
     };
-
     addLog('Click Download to save the file!', 'warn');
 
   } catch(err) {
     addLog('ERROR: ' + err.message, 'err');
-    setProgress(0, 'Failed — check console for details');
+    setProgress(0, 'Failed — see log');
     console.error(err);
   } finally {
     btnRun.disabled = false;
