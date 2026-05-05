@@ -6,7 +6,7 @@
 <title>PDF Translator — Offline</title>
 <script src="pdf.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
-<script src="tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -513,8 +513,8 @@ async function extractTextOCR(file, ocrLang, onPageProgress) {
     setProgress(12, 'Loading OCR engine…');
 
     worker = await Tesseract.createWorker(ocrLang, 1, {
-      workerPath: 'tesseract.worker.min.js',
-      corePath:   'tesseract-core-lstm.js',
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+      corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-lstm.wasm.js',
       langPath:   'https://tessdata.projectnaptha.com/4.0.0_best',
       logger: function(m) {
         if (m.status === 'loading tesseract core') {
