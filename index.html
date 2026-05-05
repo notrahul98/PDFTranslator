@@ -557,19 +557,134 @@ async function extractTextOCR(file, ocrLang, onPageProgress) {
   return allText.join('\n\n');
 }
 
-// ── Translation dictionary ────────────────────────────────────────────────
+// ── OCR noise cleaner ────────────────────────────────────────────────────
+// Removes letterhead image artifacts and OCR garbage that appear in scanned PDFs
+function cleanOCRText(text) {
+  var lines = text.split('\n');
+  var cleaned = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var trimmed = line.trim();
+
+    // Skip lines that are clearly OCR noise from logos/images:
+    // Very short (1-4 chars), all symbols, or common tesseract logo artifacts
+    if (trimmed.length === 0) { cleaned.push(''); continue; }
+    if (trimmed.length <= 3 && !/\d/.test(trimmed)) continue;
+    if (/^[^a-zA-Z0-9\.\,\:\;\/\(\)\-]+$/.test(trimmed)) continue;
+
+    // Remove lines that are clearly image OCR artifacts (mixed symbols + 1-2 letters)
+    if (/^[A-Z]{1,3}\s+[A-Z]{1,3}\s*[\)\(]/.test(trimmed)) continue;
+    if (/^(hp|senin|NE|SAB|SE|V\s)/.test(trimmed)) continue;
+    if (/^Dpr$|^ID ep aa$|^\£D|^LA Kp/.test(trimmed)) continue;
+
+    // Fix common OCR typos for Indonesian tax letters
+    var fixed = line
+      .replace(/Egualisasi/g, 'Equalisasi')
+      .replace(/Egalisasi/g, 'Equalisasi')
+      .replace(/diserdhkan/g, 'diserahkan')
+      .replace(/danpenjelasan/g, 'dan penjelasan')
+      .replace(/danpenjelas/g, 'dan penjelas')
+      .replace(/\.go\.id\./g, '.go.id,')
+      .replace(/OR Code/g, 'QR Code')
+      .replace(/memberikan-penjelasan/g, 'memberikan penjelasan')
+      .replace(/\s{3,}/g, '  ');
+
+    cleaned.push(fixed);
+  }
+  // Merge lines that were split mid-sentence by OCR
+  var merged = [];
+  var buffer = '';
+  for (var j = 0; j < cleaned.length; j++) {
+    var l = cleaned[j].trim();
+    if (!l) {
+      if (buffer) { merged.push(buffer); buffer = ''; }
+      merged.push('');
+      continue;
+    }
+    // If line ends with hyphen, it was word-wrapped — join without space
+    if (buffer && buffer.endsWith('-')) {
+      buffer = buffer.slice(0, -1) + l;
+    } else if (buffer) {
+      // Continue paragraph if previous line doesn't end sentence
+      var prevEndsLine = /[.!?:]$/.test(buffer);
+      if (prevEndsLine) {
+        merged.push(buffer);
+        buffer = l;
+      } else {
+        buffer = buffer + ' ' + l;
+      }
+    } else {
+      buffer = l;
+    }
+  }
+  if (buffer) merged.push(buffer);
+  return merged.join('\n');
+}
+
+// ── Full-sentence translation map ─────────────────────────────────────────
+// Keyed by normalised trigger words found in the line.
+// Each entry: [array of trigger keywords, full English translation]
+// A line matches if it contains ALL keywords in the trigger array.
+var SENTENCE_MAP = [
+  // Header institution lines
+  [["KEMENTERIAN","KEUANGAN","REPUBLIK"], "MINISTRY OF FINANCE OF THE REPUBLIC OF INDONESIA"],
+  [["DIREKTORAT","JENDERAL","PAJAK"], "DIRECTORATE GENERAL OF TAXES"],
+  [["KANWIL","JAKARTA","UTARA"], "REGIONAL OFFICE OF DJP NORTH JAKARTA"],
+  [["KANTOR","PELAYANAN","PRATAMA","KELAPA"], "PRIMARY TAX SERVICE OFFICE JAKARTA KELAPA GADING"],
+  [["LAYANAN","INFORMASI","KELUHAN","KRING"], "INFORMATION AND COMPLAINT SERVICE — TAX HOTLINE (021) 1500200"],
+  // Letter metadata
+  [["Permintaan","Penjelasan","Data"], "Subject : Request for Explanation of Data and/or Information"],
+  [["Rahasia"], "Nature : Confidential"],
+  [["Satu","set"], "Attachment : One set"],
+  [["Ditandatangani","secara","elektronik"], "Signed electronically"],
+  [["Kepala","Kantor"], "Head of Office,"],
+  [["Kepala","Seksi","Pengawasan"], "Head of Supervision Section VI"],
+  // Address
+  [["Kota","Administrasi","Jakarta","Utara"], "North Jakarta Administrative City, Special Capital Region of Jakarta 14240"],
+  [["Daerah","Khusus","Ibukota","Jakarta"], "Special Capital Region of Jakarta"],
+  [["Kelapa","Gading","Barat"], "Kelapa Gading Barat, Kelapa Gading"],
+  // Opening paragraph
+  [["mengucapkan","terima","kasih","apresiasi","partisipasi"], "We extend our gratitude and appreciation for your participation and commitment in fulfilling your/your company's tax obligations thus far."],
+  [["Pajak","bayarkan","sumber","utama","pembiayaan","APBN"], "The taxes you pay are the primary source of funding for Indonesia's State Revenue and Expenditure Budget (APBN)."],
+  [["Menindaklanjuti","administrasi","Direktorat","Jenderal","Pajak"], "Following up on the data in the administration of the Directorate General of Taxes, we hereby convey the following matters."],
+  [["Berdasarkan","penelitian","keterangan","miliki","peroleh","tahun","pajak"], "1. Based on an examination of the data and/or information we have and/or obtained for the 2023 tax year, it is known that:"],
+  [["diketahui","bahwa"], "it is known that:"],
+  // Items a-i
+  [["Equalisasi","biaya","gaji","dikonfirmasi"], "   a. There is a Salary Expense Equalization that needs to be confirmed"],
+  [["Equalisasi","biaya","jasa","dikonfirmasi"], "   b. There is a Service Fee Equalization that needs to be confirmed"],
+  [["Equalisasi","Biaya","Jasa","Konstruksi"], "   c. There is a Construction Service Expense Equalization that needs to be confirmed"],
+  [["rincian","persediaan","gudang","aktiva","sewa"], "   d. The Taxpayer is requested to provide an inventory breakdown and explanation of the warehouse used (no fixed assets/warehouse rental expenses recorded)"],
+  [["uang","muka","pembelian","2022","tercatat","2023"], "   e. The Taxpayer is requested to explain the purchase advance of IDR 6M in 2022 that is no longer recorded in 2023"],
+  [["pengurangan","aktiva","tetap","neraca","indikasi","penjualan"], "   f. There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
+  [["pengurangan","hutang","pajak","850","juta"], "   g. The Taxpayer is requested to provide an explanation regarding the reduction of tax payable by IDR 850 million"],
+  [["utang","non","bank","biaya","bunganya"], "   h. Regarding non-bank debt, an explanation of the related interest expense is requested"],
+  [["data","keterangan","lain","dikonfirmasi"], "   i. There is other data/information that needs to be confirmed"],
+  // Instruction paragraphs
+  [["Memperhatikan","kuasa","khusus","perpajakan","empat","belas"], "2. In view of the above, we request that you or a duly authorized representative, in accordance with the regulations on the exercise of rights and fulfillment of obligations of a tax representative, provide us with an explanation within 14 (fourteen) calendar days from the date of this letter, the date of dispatch, or the date this letter is delivered in person."],
+  [["Penjelasan","keterangan","tertulis","tatap","muka","audiovisual"], "3. Explanations may be submitted through written explanation, in-person meeting, or a face-to-face meeting via audiovisual media."],
+  [["Penjelasan","tertulis","kepala","Kantor","Pelayanan","faksimile"], "4. A written explanation may be a letter addressed to the Head of the Tax Service Office (KPP), submitted directly to the KPP, sent via facsimile, or via postal/courier service with proof of delivery."],
+  [["hendak","menyampaikan","penjelasan","Account","Representative"], "5. Should you wish to provide an explanation, raise questions, or require further information, you may contact the Account Representative and/or accompanying official as follows."],
+  [["Apabila","pegawai","Direktorat","barang","uang","fasilitas","Kring","Pajak"], "6. Should any employee of the Directorate General of Taxes request and/or receive goods/money/facilities from the taxpayer, please report via Tax Hotline 1500200, phone (021) 52970777, email pengaduan@pajak.go.id, or website https://pengaduan.pajak.go.id."],
+  // Closing
+  [["Kepedulian","peran","aktif","perpajakan","hargai"], "Your concern and active role in fulfilling your tax obligations are greatly appreciated."],
+  [["perhatian","kerja","sama","ucapkan","terima","kasih"], "We thank you for your attention and cooperation."],
+  [["dikeluarkan","elektronik","tandatangan","cap","basah"], "This document was issued electronically and does not require a wet signature or official stamp."],
+  [["Validasi","memindai","QR","Code","M-Pajak"], "This document can be validated by scanning the QR Code using the M-Pajak mobile application."],
+  // Contact fields
+  [["Account","Representative"], "   Account Representative"],
+  [["Pejabat","pendamping"], "   Accompanying Official"],
+];
+
+// ── Phrase-level substitutions (applied to lines not matched by sentence map)
 var PHRASES = [
   ["Kementerian Keuangan Republik Indonesia","Ministry of Finance of the Republic of Indonesia"],
   ["Direktorat Jenderal Pajak","Directorate General of Taxes"],
   ["Kanwil DJP Jakarta Utara","Regional Office of DJP North Jakarta"],
-  ["Kantor Pelayanan Pajak Pratama Jakarta Kelapa Gading","Primary Tax Service Office Jakarta Kelapa Gading"],
   ["Kantor Pelayanan Pajak Pratama","Primary Tax Service Office"],
   ["Kantor Pelayanan Pajak","Tax Service Office"],
   ["Kepala Kantor","Head of Office"],
   ["Kepala Seksi Pengawasan","Head of Supervision Section"],
-  ["Kepala Seksi","Head of Section"],
   ["Pejabat pendamping","Accompanying Official"],
-  ["Permintaan Penjelasan atas Data dan/atau Keterangan","Request for Explanation of Data and/or Information"],
   ["Ditandatangani secara elektronik","Signed electronically"],
   ["Yth. Pimpinan","To the Director of"],
   ["Yth.","To"],
@@ -582,82 +697,75 @@ var PHRASES = [
   ["Rahasia","Confidential"],
   ["Lampiran","Attachment"],
   ["Satu set","One set"],
-  ["Kami mengucapkan terima kasih dan memberikan apresiasi atas partisipasi dan kepedulian Saudara dalam memenuhi kewajiban pajak Saudara/perusahaan Saudara selama ini.","We extend our gratitude and appreciation for your participation and commitment in fulfilling your/your company's tax obligations thus far."],
-  ["Pajak yang Saudara bayarkan merupakan sumber utama pembiayaan Anggaran Pendapatan dan Belanja Negara (APBN) Indonesia.","The taxes you pay are the primary source of funding for Indonesia's State Revenue and Expenditure Budget (APBN)."],
-  ["Menindaklanjuti data pada administrasi Direktorat Jenderal Pajak, dengan ini disampaikan beberapa hal sebagai berikut.","Following up on the data in the administration of the Directorate General of Taxes, we hereby convey the following matters."],
-  ["Berdasarkan penelitian terhadap data dan/atau keterangan yang kami miliki dan/atau kami peroleh untuk tahun pajak","Based on an examination of the data and/or information we have and/or obtained for the tax year"],
-  ["diketahui bahwa:","it is known that:"],
-  ["Terdapat Equalisasi biaya gaji yang perlu dikonfirmasi","There is a Salary Expense Equalization that needs to be confirmed"],
-  ["Terdapat Equalisasi biaya jasa yang perlu dikonfirmasi","There is a Service Fee Equalization that needs to be confirmed"],
-  ["Terdapat Equalisasi Biaya Jasa Konstruksi yang perlu dikonfirmasi","There is a Construction Service Expense Equalization that needs to be confirmed"],
-  ["Wajib Pajak diminta menyampaikan rincian persediaan, danpenjelasan atas gudang yg digunakan (karena tidak ada aktiva/biaya sewa gudang)","The Taxpayer is requested to provide an inventory breakdown and explanation of the warehouse used (no fixed assets/warehouse rental recorded)"],
-  ["Wajib Pajak diminta menyampaikan penjelasan atas uang muka pembelian 6M di 2022 namun tidak tercatat lagi di tahun 2023","The Taxpayer is requested to explain the purchase advance of IDR 6M in 2022 no longer recorded in 2023"],
-  ["Ada pengurangan aktiva tetap di neraca,indikasi penjualan aktiva tetap lainnya","There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
-  ["Ada pengurangan aktiva tetap di neraca, indikasi penjualan aktiva tetap lainnya","There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
-  ["Wajib Pajak diminta menyampaikan penjelasan atas pengurangan hutang pajak 850 juta","The Taxpayer is requested to explain the reduction of tax payable by IDR 850 million"],
-  ["Terkait utang ke non bank, diminta penjelasan atas biaya bunganya","Regarding non-bank debt, an explanation of the related interest expense is requested"],
-  ["Terdapat data/ keterangan lain yang perlu dikonfirmasi","There is other data/information that needs to be confirmed"],
-  ["Terdapat data/keterangan lain yang perlu dikonfirmasi","There is other data/information that needs to be confirmed"],
-  ["Memperhatikan hal di atas, kami berharap Saudara atau pihak yang diberi kuasa khusus sesuai dengan peraturan mengenai pelaksanaan hak dan pemenuhan kewajiban seorang kuasa di bidang perpajakan, dapat memberikan penjelasan kepada kami atas data dan/atau keterangan yang dimaksud, dalam waktu 14 (empat belas) hari kalender sejak tanggal surat, tanggal kirim surat, atau tanggal surat ini diserahkan secara langsung.","In view of the above, we request that you or a duly authorized representative provide an explanation within 14 (fourteen) calendar days from the date of this letter."],
-  ["Penjelasan atas data dan/atau keterangan di atas dapat dilakukan melalui penjelasan tertulis, tatap muka langsung, atau tatap muka melalui media audiovisual.","Explanations may be submitted through written explanation, in-person meeting, or face-to-face via audiovisual media."],
-  ["Penjelasan secara tertulis dapat berupa surat yang ditujukan kepada kepala Kantor Pelayanan Pajak (KPP), yang dapat disampaikan secara langsung ke KPP, dikirimkan melalui faksimile, atau dikirimkan melalui jasa pos/ekspedisi/kurir dengan bukti pengiriman surat.","A written explanation may be a letter to the Head of the Tax Service Office (KPP), submitted directly, via facsimile, or via postal/courier service with proof of delivery."],
-  ["Dalam hal Saudara hendak menyampaikan penjelasan, mengajukan pertanyaan, atau memerlukan informasi lebih lanjut, Saudara dapat menghubungi Account Representative dan/atau pejabat pendamping sebagai berikut.","Should you wish to provide an explanation or need further information, you may contact the Account Representative and/or accompanying official as follows."],
-  ["Kepedulian dan peran aktif Saudara dalam melaksanakan kewajiban perpajakan sangat kami hargai.","Your concern and active role in fulfilling your tax obligations are greatly appreciated."],
-  ["Atas perhatian dan kerja sama Saudara, kami ucapkan terima kasih.","We thank you for your attention and cooperation."],
-  ["Dokumen ini dikeluarkan secara elektronik dan tidak memerlukan tandatangan atau cap basah.","This document was issued electronically and does not require a wet signature or stamp."],
-  ["nama","name"],
-  ["jabatan","position"],
-  ["informasi kontak","contact information"],
+  ["Hal :","Subject :"],
+  ["nama :","Name :"],
+  ["nama","Name"],
+  ["jabatan :","Position :"],
+  ["jabatan","Position"],
+  ["informasi kontak","Contact information"],
   ["dan/atau","and/or"],
-  ["telepon","phone"],
+  ["telepon","Phone"],
   ["faksimile","facsimile"],
   ["surel","email"],
   ["laman","website"],
-  ["tahun pajak","tax year"],
-  ["wajib pajak","taxpayer"],
   ["Wajib Pajak","Taxpayer"],
-  ["aktiva tetap","fixed assets"],
-  ["hutang pajak","tax payable"],
-  ["uang muka","advance payment"],
-  ["biaya gaji","salary expense"],
-  ["biaya jasa","service fee"],
-  ["biaya bunga","interest expense"],
-  ["persediaan","inventory"],
-  ["pengurangan","reduction"],
-  ["penjelasan","explanation"],
-  ["penjualan","sale"],
-  ["pembelian","purchase"],
-  ["neraca","balance sheet"],
-  ["sewa gudang","warehouse rental"],
-  ["juta","million"],
-  ["miliar","billion"],
-  ["hari kalender","calendar days"],
-  ["empat belas","fourteen"]
 ];
 
-function translateToEnglish(text) {
-  var t = text;
-  for (var i = 0; i < PHRASES.length; i++) {
-    var from = PHRASES[i][0];
-    var to   = PHRASES[i][1];
-    while (t.indexOf(from) !== -1) { t = t.split(from).join(to); }
+// ── Normalise a line for keyword matching (lowercase, no punctuation) ──────
+function normLine(line) {
+  return line.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+}
+
+// ── Check if all keywords appear in the normalised line ───────────────────
+function allIn(keywords, normed) {
+  for (var k = 0; k < keywords.length; k++) {
+    if (normed.indexOf(keywords[k].toLowerCase()) === -1) return false;
   }
-  var words = {
-    "dan":"and","atau":"or","dari":"from","dalam":"within","pada":"at",
-    "untuk":"for","kepada":"to","oleh":"by","juga":"also","telah":"has",
-    "serta":"as well as","agar":"so that","sejak":"since","apabila":"if",
-    "hendak":"wish to","dapat":"may","melalui":"via","secara":"in a",
-    "langsung":"directly","tertulis":"written","dilaporkan":"reported",
-    "barang":"goods","uang":"money","fasilitas":"facilities",
-    "pegawai":"employee","peraturan":"regulations","hak":"rights",
-    "kewajiban":"obligations","perpajakan":"taxation","dengan":"with",
-    "tidak":"not","karena":"because","digunakan":"used","tercatat":"recorded",
-    "indikasi":"indicating","surat":"letter","tanggal":"date","waktu":"time"
-  };
-  t = t.replace(/\b(\w+)\b/g, function(m) {
-    return words[m.toLowerCase()] !== undefined ? words[m.toLowerCase()] : m;
-  });
+  return true;
+}
+
+// ── Translate one line: try sentence map first, then phrase subs ───────────
+function translateLine(line) {
+  var trimmed = line.trim();
+  if (!trimmed) return line;
+
+  var normed = normLine(trimmed);
+
+  // 1. Try full-sentence replacement
+  for (var i = 0; i < SENTENCE_MAP.length; i++) {
+    if (allIn(SENTENCE_MAP[i][0], normed)) {
+      // Preserve any leading number/letter list prefix from original line
+      var prefix = '';
+      var prefixMatch = trimmed.match(/^(\d+\.?|[a-i]\.?)\s+/);
+      // For sentence map items that already include the prefix, just return as-is
+      return SENTENCE_MAP[i][1];
+    }
+  }
+
+  // 2. Apply phrase substitutions
+  var t = trimmed;
+  for (var j = 0; j < PHRASES.length; j++) {
+    while (t.indexOf(PHRASES[j][0]) !== -1) {
+      t = t.split(PHRASES[j][0]).join(PHRASES[j][1]);
+    }
+  }
+
+  // 3. If no phrase matched and line looks like it still has Indonesian content,
+  //    keep it as-is rather than garbling it with word-by-word replacement
   return t;
+}
+
+function translateToEnglish(text) {
+  // Step 1: clean OCR noise
+  var cleaned = cleanOCRText(text);
+
+  // Step 2: translate line by line
+  var lines = cleaned.split('\n');
+  var out = [];
+  for (var i = 0; i < lines.length; i++) {
+    out.push(translateLine(lines[i]));
+  }
+  return out.join('\n');
 }
 
 function translate(text, srcLang, tgtLang) {
