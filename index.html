@@ -249,11 +249,7 @@ footer a:hover { color:var(--accent); }
 
   <!-- OCR setup notice -->
   <div class="info-box">
-    <strong>📋 First-time OCR setup:</strong> For scanned PDFs, place these two files in a <code>lang/</code> subfolder next to <code>index.html</code>:<br>
-    <code>lang/ind.traineddata</code> &nbsp;·&nbsp; <code>lang/eng.traineddata</code><br>
-    Download free from:
-    <a href="https://github.com/tesseract-ocr/tessdata_fast" target="_blank" style="color:var(--accent);font-weight:600">github.com/tesseract-ocr/tessdata_fast ↗</a>
-    &nbsp;(~4 MB each). Text-based PDFs work without these files.
+    <strong>📋 Scanned PDF support:</strong> OCR language data (~10 MB) is downloaded automatically from the internet the <em>first time</em> you process a scanned PDF, then cached by your browser. Text-based PDFs work fully offline with no download needed.
   </div>
 
   <!-- Step 1 -->
@@ -302,7 +298,7 @@ footer a:hover { color:var(--accent); }
       </div>
     </div>
     <div class="ocr-note show" id="ocrNote">
-      ⚠️ <strong>OCR mode:</strong> Requires <code>lang/ind.traineddata</code> in the same folder. If missing, the tool will attempt OCR with English language data as fallback.
+      ⚠️ <strong>OCR mode:</strong> Language data will be downloaded automatically (~10 MB, one-time). Make sure you have an internet connection for the first OCR run — it will be cached after that.
     </div>
   </div>
 
@@ -503,51 +499,61 @@ async function renderPageToDataURL(file, pageNum, scale) {
   return { dataUrl: canvas.toDataURL('image/png'), numPages: pdf.numPages };
 }
 
-// ── OCR a single page using Tesseract.js ─────────────────────────────────
-async function ocrPage(dataUrl, ocrLang, onProgress) {
-  var worker = await Tesseract.createWorker(ocrLang, 1, {
-    workerPath:  'tesseract.worker.min.js',
-    corePath:    'tesseract-core-lstm.js',
-    langPath:    'lang',
-    logger:      function(m) {
-      if (m.status === 'recognizing text' && onProgress) {
-        onProgress(Math.round(m.progress * 100));
-      }
-    }
-  });
-  var result = await worker.recognize(dataUrl);
-  await worker.terminate();
-  return result.data.text;
-}
-
 // ── Extract text from scanned PDF via OCR ────────────────────────────────
+// Single worker reused across all pages — lang data fetched from CDN (cached after first use)
 async function extractTextOCR(file, ocrLang, onPageProgress) {
-  var buf     = await file.arrayBuffer();
-  var pdf     = await pdfjsLib.getDocument({ data: buf }).promise;
+  var buf      = await file.arrayBuffer();
+  var pdf      = await pdfjsLib.getDocument({ data: buf }).promise;
   var numPages = pdf.numPages;
-  var allText = [];
+  var allText  = [];
+  var worker   = null;
 
-  for (var i = 1; i <= numPages; i++) {
-    addLog('OCR page ' + i + ' of ' + numPages + '…', 'ocr');
-    onPageProgress(i, numPages);
+  try {
+    addLog('Creating OCR worker (' + ocrLang + ')…', 'ocr');
+    setProgress(12, 'Loading OCR engine…');
 
-    // Render to canvas
-    var page = await pdf.getPage(i);
-    var vp   = page.getViewport({ scale: 2.5 });
-    var canvas    = document.createElement('canvas');
-    canvas.width  = Math.floor(vp.width);
-    canvas.height = Math.floor(vp.height);
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    var dataUrl = canvas.toDataURL('image/png');
-
-    var text = await ocrPage(dataUrl, ocrLang, function(pct) {
-      setProgress(
-        30 + ((i - 1 + pct / 100) / numPages) * 40,
-        'OCR page ' + i + '/' + numPages + ' (' + pct + '%)'
-      );
+    worker = await Tesseract.createWorker(ocrLang, 1, {
+      workerPath: 'tesseract.worker.min.js',
+      corePath:   'tesseract-core-lstm.js',
+      langPath:   'https://tessdata.projectnaptha.com/4.0.0_best',
+      logger: function(m) {
+        if (m.status === 'loading tesseract core') {
+          setProgress(14, 'Loading OCR core…');
+        } else if (m.status === 'loading language traineddata') {
+          setProgress(20, 'Downloading language data (cached after first use)…');
+          addLog('Fetching ' + ocrLang + ' language data from CDN…', 'ocr');
+        } else if (m.status === 'initializing api') {
+          setProgress(27, 'Initialising OCR engine…');
+          addLog('OCR engine initialising…', 'ocr');
+        }
+      }
     });
-    allText.push(text.trim());
+
+    addLog('OCR engine ready — processing ' + numPages + ' page(s)…', 'ok');
+
+    for (var i = 1; i <= numPages; i++) {
+      onPageProgress(i, numPages);
+      addLog('OCR page ' + i + ' of ' + numPages + '…', 'ocr');
+
+      var page   = await pdf.getPage(i);
+      var vp     = page.getViewport({ scale: 2.5 });
+      var canvas = document.createElement('canvas');
+      canvas.width  = Math.floor(vp.width);
+      canvas.height = Math.floor(vp.height);
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+      var result   = await worker.recognize(canvas);
+      var pageText = result.data.text.trim();
+      allText.push(pageText);
+
+      setProgress(30 + (i / numPages) * 55, 'Page ' + i + '/' + numPages + ' done');
+      addLog('Page ' + i + ' done — ' + pageText.length + ' chars extracted', 'ok');
+    }
+
+  } finally {
+    if (worker) { try { await worker.terminate(); } catch(e) {} }
   }
+
   return allText.join('\n\n');
 }
 
