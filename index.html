@@ -219,8 +219,20 @@ h1 em { font-style: normal; color: var(--accent); }
 .res-info { flex:1; min-width:0; }
 .res-title { font-size:14px; font-weight:700; color:var(--success); }
 .res-sub { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.btn-dl { background:var(--success); color:#fff; border:none; padding:9px 18px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; border-radius:8px; white-space:nowrap; box-shadow:0 2px 8px rgba(56,107,72,.28); transition:background .15s, transform .1s; }
-.btn-dl:hover { background:#2d5e3c; transform:translateY(-1px); }
+
+.dl-row { display:none; gap:10px; margin-top:10px; }
+.dl-row.show { display:grid; grid-template-columns:1fr 1fr; }
+
+.btn-dl {
+  border:none; padding:12px 16px; font-family:inherit; font-size:13px; font-weight:700;
+  cursor:pointer; border-radius:10px; text-align:center; line-height:1.5;
+  transition: all .15s; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.btn-dl small { font-size:11px; font-weight:400; opacity:0.85; display:block; }
+.btn-dl-orig  { background:#e8f0de; color:var(--accent2); border:1.5px solid #b8d49a; }
+.btn-dl-orig:hover  { background:#d8e8cc; transform:translateY(-1px); }
+.btn-dl-trans { background:var(--success); color:#fff; }
+.btn-dl-trans:hover { background:#2d5e3c; transform:translateY(-1px); }
 
 /* ── Steps ── */
 .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
@@ -320,10 +332,17 @@ footer a:hover { color:var(--accent); }
     <div class="result-wrap" id="resultWrap">
       <span class="res-icon">✅</span>
       <div class="res-info">
-        <div class="res-title">Bilingual PDF ready!</div>
+        <div class="res-title">PDFs ready to download!</div>
         <div class="res-sub" id="resSub"></div>
       </div>
-      <button class="btn-dl" id="btnDownload" type="button">⬇ Download</button>
+    </div>
+    <div class="dl-row" id="dlRow">
+      <button class="btn-dl btn-dl-orig" id="btnDlOrig" type="button">
+        🇮🇩 Download Original<br><small>Indonesian (cleaned)</small>
+      </button>
+      <button class="btn-dl btn-dl-trans" id="btnDlTrans" type="button">
+        🇬🇧 Download Translation<br><small id="dlTransLabel">English</small>
+      </button>
     </div>
   </div>
 
@@ -406,6 +425,7 @@ btnRemove.addEventListener('click', function() {
   fileInput.value = '';
   btnRun.disabled = true;
   resultWrap.classList.remove('show');
+  ge('dlRow').classList.remove('show');
   progressWrap.classList.remove('show');
   logEl.innerHTML = '';
 });
@@ -709,7 +729,74 @@ function translate(text, srcLang, tgtLang) {
   return eng;
 }
 
-// ── Build bilingual PDF ───────────────────────────────────────────────────
+// ── Build a single-language PDF ───────────────────────────────────────────
+function buildSinglePDF(text, lang, type) {
+  var doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
+  var W   = doc.internal.pageSize.getWidth();
+  var H   = doc.internal.pageSize.getHeight();
+  var ML  = 18, MR = 18, PW = W - ML - MR;
+  var y   = 18;
+
+  function newPage() { doc.addPage(); y = 18; }
+  function check(n)  { if (y + (n||7) > H - 14) newPage(); }
+
+  function writePara(text, size, style, indent, color) {
+    doc.setFont('helvetica', style||'normal'); doc.setFontSize(size||9);
+    doc.setTextColor((color||[35,35,35])[0],(color||[35,35,35])[1],(color||[35,35,35])[2]);
+    var lines = doc.splitTextToSize(text, PW-(indent||0));
+    for (var i=0;i<lines.length;i++){ check(5); doc.text(lines[i],ML+(indent||0),y); y+=5; }
+    y += 1.5;
+  }
+
+  function renderBody(bodyText) {
+    var paras = bodyText.split(/\n+/);
+    for (var i=0;i<paras.length;i++) {
+      var t = paras[i].trim(); if (!t){y+=2;continue;}
+      var allCaps  = (t===t.toUpperCase()&&t.length>6&&/[A-Z]/.test(t));
+      var numbered = /^\d+[\.\)]\s/.test(t);
+      var lettered = /^\s+[a-i]\.\s/.test(t)||(/^[a-i]\.\s/.test(t)&&t.length<200);
+      if      (allCaps)  writePara(t,8.5,'bold',  0,[20,20,20]);
+      else if (numbered) writePara(t,9,  'normal', 0,[25,25,25]);
+      else if (lettered) writePara(t,9,  'normal', 6,[40,40,40]);
+      else               writePara(t,9,  'normal', 0,[35,35,35]);
+    }
+  }
+
+  // Header banner
+  var isOrig  = type === 'original';
+  var bannerR = isOrig ? 78  : 36;
+  var bannerG = isOrig ? 108 : 96;
+  var bannerB = isOrig ? 48  : 66;
+  var label   = isOrig ? 'ORIGINAL — ' + lang.toUpperCase()
+                       : 'TRANSLATION — ' + lang.toUpperCase();
+
+  // Title
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.setTextColor(60,100,40);
+  doc.text('PDF TRANSLATOR', W/2, y, {align:'center'}); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(140,140,140);
+  doc.text(new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}), W/2, y, {align:'center'});
+  y+=3;
+  doc.setDrawColor(155,195,120); doc.setLineWidth(0.5); doc.line(ML,y+2,W-MR,y+2); y+=8;
+
+  // Section banner
+  doc.setFillColor(bannerR,bannerG,bannerB); doc.rect(ML,y,PW,8,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+  doc.text(label, ML+4, y+5.5); y+=11; doc.setTextColor(30,30,30);
+
+  renderBody(text);
+
+  // Page numbers
+  var total = doc.internal.getNumberOfPages();
+  for (var p=1;p<=total;p++) {
+    doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(185,185,185);
+    doc.text(p+' / '+total, W-MR, H-7, {align:'right'});
+    doc.text('PDF Translator — ' + (isOrig ? 'Original' : 'Translation'), ML, H-7);
+  }
+  return doc;
+}
+
+// ── Build bilingual PDF (both sections) ───────────────────────────────────
 function buildPDF(original, translated, srcLang, tgtLang, wasOCR) {
   var doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
   var W   = doc.internal.pageSize.getWidth();
@@ -817,23 +904,40 @@ btnRun.addEventListener('click', async function() {
     addLog('Translation complete', 'ok');
     setProgress(85, 'Building PDF…');
 
-    addLog('Assembling bilingual PDF…', 'info');
-    var doc = buildPDF(cleanedOriginal, translated, srcLang, tgtLang, true);
-    outputBlob = doc.output('blob');
-    addLog('PDF built: ' + outName, 'ok');
-    setProgress(100, 'Done \u2713');
+    addLog('Assembling PDFs…', 'info');
 
-    resSub.textContent = outName;
+    // Build original-only PDF
+    var docOrig  = buildSinglePDF(cleanedOriginal, srcLang, 'original');
+    var blobOrig = docOrig.output('blob');
+
+    // Build translation-only PDF
+    var docTrans  = buildSinglePDF(translated, tgtLang, 'translation');
+    var blobTrans = docTrans.output('blob');
+
+    var base      = selectedFile.name.replace(/\.pdf$/i,'');
+    var nameOrig  = base + '_original_' + srcLang.split(' ')[0] + '.pdf';
+    var nameTrans = base + '_translated_' + tgtLang.split(' ')[0] + '.pdf';
+
+    addLog('Both PDFs ready!', 'ok');
+    setProgress(100, 'Done ✓');
+
+    resSub.textContent = base;
     resultWrap.classList.add('show');
+    ge('dlRow').classList.add('show');
+    ge('dlTransLabel').textContent = tgtLang;
 
-    btnDownload.onclick = function() {
-      var url = URL.createObjectURL(outputBlob);
+    function triggerDownload(blob, filename) {
+      var url = URL.createObjectURL(blob);
       var a   = document.createElement('a');
-      a.href  = url; a.download = outName;
+      a.href  = url; a.download = filename;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
-    };
-    addLog('Click Download to save the file!', 'warn');
+    }
+
+    ge('btnDlOrig').onclick  = function() { triggerDownload(blobOrig,  nameOrig);  };
+    ge('btnDlTrans').onclick = function() { triggerDownload(blobTrans, nameTrans); };
+
+    addLog('Click a button to download!', 'warn');
 
   } catch(err) {
     addLog('ERROR: ' + err.message, 'err');
