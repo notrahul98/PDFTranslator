@@ -723,11 +723,11 @@ function translateToEnglish(text) {
   return t;
 }
 
-function translate(text, srcLang, tgtLang) {
-  var eng = translateToEnglish(text);
+function translate(text, tgtLang) {
+  // Only translate if target is English (offline support)
   if (tgtLang !== 'English')
-    return '[Note: Offline translation to English only. For ' + tgtLang + ', use an online service.]\n\n' + eng;
-  return eng;
+    return '[Note: Offline translation to English only. For ' + tgtLang + ', use an online service.]\n\n' + translateToEnglish(text);
+  return translateToEnglish(text);
 }
 
 // ── Build a single-language PDF ───────────────────────────────────────────
@@ -900,8 +900,10 @@ btnRun.addEventListener('click', async function() {
     setProgress(72, 'Translating…');
 
     addLog('Cleaning and translating…', 'info');
+    // Original: just clean OCR noise — NO translation applied
     var cleanedOriginal = cleanOriginal(rawText);
-    var translated = translate(cleanedOriginal, srcLang, tgtLang);
+    // Translation: run the full translation engine on the cleaned text
+    var translated = translate(cleanedOriginal, tgtLang);
     addLog('Translation complete', 'ok');
     setProgress(85, 'Building PDF…');
 
