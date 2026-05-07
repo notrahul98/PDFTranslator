@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- PDF TRANSLATOR v2.0 — TWO DOWNLOAD BUTTONS -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PDF Translator — Offline</title>
+<title>PDF Translator v2.0 — Offline</title>
 <script src="pdf.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -330,18 +331,18 @@ footer a:hover { color:var(--accent); }
     </div>
 
     <div class="result-wrap" id="resultWrap">
-      <span class="res-icon">✅</span>
+      <span class="res-icon">&#x2705;</span>
       <div class="res-info">
         <div class="res-title">PDFs ready to download!</div>
         <div class="res-sub" id="resSub"></div>
       </div>
     </div>
-    <div class="dl-row" id="dlRow">
-      <button class="btn-dl btn-dl-orig" id="btnDlOrig" type="button">
-        🇮🇩 Download Original<br><small>Indonesian (cleaned)</small>
+    <div id="dlRow" style="display:none; margin-top:12px; gap:10px; grid-template-columns:1fr 1fr;">
+      <button id="btnDlOrig" type="button" style="background:#e8f0de;color:#385f50;border:1.5px solid #b8d49a;padding:14px 10px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center;line-height:1.6;">
+        &#x1F1EE;&#x1F1E9; Download Original<br><span style="font-size:11px;font-weight:400;">Indonesian (cleaned)</span>
       </button>
-      <button class="btn-dl btn-dl-trans" id="btnDlTrans" type="button">
-        🇬🇧 Download Translation<br><small id="dlTransLabel">English</small>
+      <button id="btnDlTrans" type="button" style="background:#386b48;color:#fff;border:none;padding:14px 10px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center;line-height:1.6;">
+        &#x1F1EC;&#x1F1E7; Download Translation<br><span id="dlTransLabel" style="font-size:11px;font-weight:400;">English</span>
       </button>
     </div>
   </div>
@@ -425,7 +426,7 @@ btnRemove.addEventListener('click', function() {
   fileInput.value = '';
   btnRun.disabled = true;
   resultWrap.classList.remove('show');
-  ge('dlRow').classList.remove('show');
+  ge('dlRow').style.display = 'none';
   progressWrap.classList.remove('show');
   logEl.innerHTML = '';
 });
@@ -923,7 +924,7 @@ btnRun.addEventListener('click', async function() {
 
     resSub.textContent = base;
     resultWrap.classList.add('show');
-    ge('dlRow').classList.add('show');
+    ge('dlRow').style.display = 'grid';
     ge('dlTransLabel').textContent = tgtLang;
 
     function triggerDownload(blob, filename) {
