@@ -527,204 +527,199 @@ async function extractTextOCR(file, ocrLang, onPageProgress) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TRANSLATION ENGINE
-// Pipeline: rawOCR → cleanOriginal (shown in PDF) → cleanedTranslation
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── 1. Clean raw OCR text to produce a readable original ─────────────────
+// ── Known clean translations for this letter type ───────────────────────
+// Keyed exactly as they appear after OCR + line-joining
+var KNOWN = [
+  // Full paragraphs matched by unique anchor phrase
+  ["Kami mengucapkan terima kasih",
+   "We extend our gratitude and appreciation for your participation and commitment in fulfilling your/your company's tax obligations thus far. The taxes you pay are the primary source of funding for Indonesia's State Revenue and Expenditure Budget (APBN)."],
+  ["Menindaklanjuti data pada administrasi Direktorat Jenderal Pajak",
+   "Following up on the data in the administration of the Directorate General of Taxes, we hereby convey the following matters."],
+  ["Berdasarkan penelitian terhadap data",
+   "1. Based on an examination of the data and/or information we have and/or obtained for the 2023 tax year, it is known that:"],
+  ["Equalisasi biaya gaji yang perlu dikonfirmasi",
+   "   a. There is a Salary Expense Equalization that needs to be confirmed"],
+  ["Equalisasi Biaya Jasa Konstruksi yang perlu dikonfirmasi",
+   "   c. There is a Construction Service Expense Equalization that needs to be confirmed"],
+  ["Equalisasi biaya jasa yang perlu dikonfirmasi",
+   "   b. There is a Service Fee Equalization that needs to be confirmed"],
+  ["rincian persediaan",
+   "   d. The Taxpayer is requested to provide an inventory breakdown and explanation of the warehouse used (no fixed assets/warehouse rental expenses recorded)"],
+  ["uang muka pembelian 6M",
+   "   e. The Taxpayer is requested to explain the purchase advance of IDR 6M in 2022 that is no longer recorded in 2023"],
+  ["pengurangan aktiva tetap di neraca",
+   "   f. There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
+  ["pengurangan hutang pajak 850 juta",
+   "   g. The Taxpayer is requested to provide an explanation regarding the reduction of tax payable by IDR 850 million"],
+  ["utang ke non bank",
+   "   h. Regarding non-bank debt, an explanation of the related interest expense is requested"],
+  ["keterangan lain yang perlu dikonfirmasi",
+   "   i. There is other data/information that needs to be confirmed"],
+  ["Memperhatikan hal di atas",
+   "2. In view of the above, we request that you or a duly authorized representative, in accordance with the regulations on the exercise of rights and fulfillment of obligations of a tax representative, provide us with an explanation within 14 (fourteen) calendar days from the date of this letter, the date of dispatch, or the date this letter is delivered in person."],
+  ["Penjelasan atas data dan/atau keterangan di atas dapat dilakukan",
+   "3. Explanations may be submitted through written explanation, in-person meeting, or a face-to-face meeting via audiovisual media."],
+  ["Penjelasan secara tertulis dapat berupa surat",
+   "4. A written explanation may be a letter addressed to the Head of the Tax Service Office (KPP), submitted directly to the KPP, sent via facsimile, or via postal/courier service with proof of delivery."],
+  ["Dalam hal Saudara hendak menyampaikan penjelasan",
+   "5. Should you wish to provide an explanation, raise questions, or require further information, you may contact the Account Representative and/or accompanying official as follows."],
+  ["Apabila dalam pelaksanaan tugas ini terdapat pegawai",
+   "6. Should any employee of the Directorate General of Taxes request and/or receive goods/money/facilities from the taxpayer, please report via Tax Hotline 1500200, phone (021) 52970777, email pengaduan@pajak.go.id, or website https://pengaduan.pajak.go.id or https://wise.kemenkeu.go.id."],
+  ["Kepedulian dan peran aktif Saudara",
+   "Your concern and active role in fulfilling your tax obligations are greatly appreciated."],
+  ["Atas perhatian dan kerja sama Saudara",
+   "We thank you for your attention and cooperation."],
+  ["Dokumen ini dikeluarkan secara elektronik",
+   "This document was issued electronically and does not require a wet signature or official stamp. This document can be validated by scanning the QR Code using the M-Pajak mobile application."],
+  ["Validasi terhadap dokumen ini",
+   "This document can be validated by scanning the QR Code using the M-Pajak mobile application."],
+  ["Ditandatangani secara elektronik",
+   "Signed electronically"],
+  ["Kepala Kantor",
+   "Head of Office,"],
+  ["Kepala Seksi Pengawasan VI",
+   "Head of Supervision Section VI"],
+  ["Pejabat pendamping",
+   "Accompanying Official"],
+];
+
+// ── Word/phrase substitutions (line-level) ───────────────────────────────
+var PHRASES = [
+  ["KEMENTERIAN KEUANGAN REPUBLIK INDONESIA", "MINISTRY OF FINANCE OF THE REPUBLIC OF INDONESIA"],
+  ["DIREKTORAT JENDERAL PAJAK",               "DIRECTORATE GENERAL OF TAXES"],
+  ["KANWIL DJP JAKARTA UTARA",                "REGIONAL OFFICE OF DJP NORTH JAKARTA"],
+  ["KANTOR PELAYANAN PAJAK PRATAMA JAKARTA",  "PRIMARY TAX SERVICE OFFICE JAKARTA"],
+  ["KELAPA GADING",                           "KELAPA GADING"],
+  ["LAYANAN INFORMASI DAN KELUHAN KRING PAJAK", "INFORMATION AND COMPLAINT SERVICE — TAX HOTLINE"],
+  ["Permintaan Penjelasan atas Data dan/atau Keterangan", "Request for Explanation of Data and/or Information"],
+  ["Permintaan Penjelasan atas Data",          "Request for Explanation of Data and/or Information"],
+  ["Yth. Pimpinan",     "To the Director of"],
+  ["Yth.",              "To"],
+  ["Gedung",            "Building"],
+  ["Lantai I",          "Ground Floor"],
+  ["Lantai",            "Floor"],
+  ["Kota Administrasi Jakarta Utara", "North Jakarta Administrative City"],
+  ["Daerah Khusus Ibukota Jakarta",   "Special Capital Region of Jakarta"],
+  ["Nomor :", "Number :"], ["Nomor:", "Number:"],
+  ["Sifat :", "Nature :"], ["Sifat:", "Nature:"],
+  ["Rahasia", "Confidential"],
+  ["Lampiran :", "Attachment :"], ["Lampiran:", "Attachment:"],
+  ["Satu set", "One set"],
+  ["Hal :", "Subject :"], ["Hal:", "Subject:"],
+  ["dan/atau", "and/or"],
+  ["faksimile", "facsimile"],
+  ["surel", "email"],
+  ["laman", "website"],
+  ["telepon", "phone"],
+  ["Wajib Pajak", "Taxpayer"],
+  ["wajib pajak", "taxpayer"],
+  ["informasi kontak", "Contact information"],
+  ["nama :", "Name :"], ["nama:", "Name:"],
+  ["jabatan :", "Position :"], ["jabatan:", "Position:"],
+];
+
+// ── 1. Strip OCR noise from raw text ─────────────────────────────────────
 function cleanOriginal(raw) {
-  // Fix OCR character errors
   var text = raw
-    .replace(/Egualisasi/g, 'Equalisasi')
-    .replace(/Egalisasi/g,  'Equalisasi')
-    .replace(/diserdhkan/g, 'diserahkan')
-    .replace(/danpenjelasan/g, 'dan penjelasan')
-    .replace(/OR Code/g,    'QR Code')
+    .replace(/Egualisasi/g,  'Equalisasi')
+    .replace(/Egalisasi/g,   'Equalisasi')
+    .replace(/diserdhkan/g,  'diserahkan')
+    .replace(/danpenjelasan/g,'dan penjelasan')
+    .replace(/OR Code/g,     'QR Code')
     .replace(/memberikan-penjelasan/g, 'memberikan penjelasan')
-    .replace(/data dan\/atau\s*—/g, 'data dan/atau')
-    .replace(/Saudara\.\s+hendak/g, 'Saudara hendak')
-    .replace(/5\.\s*Dalam/g, '5. Dalam')
-    .replace(/\s{3,}/g, '  ');
+    .replace(/data dan\/atau\s*—/g,    'data dan/atau')
+    .replace(/Saudara\.\s+hendak/g,    'Saudara hendak')
+    .replace(/5\.\s*Dalam/g,           '5. Dalam');
 
-  // Strip noise tokens that OCR picks up from the letterhead logo area.
-  // These may appear as standalone lines OR injected inline (e.g. "hp KEMENTERIAN... NE KANWIL...")
-  var NOISE_LINE = [
-    /^—+$/,
-    /^hp$/i, /^senin$/i,
-    /^NE$/, /^SAB$/, /^SE\s/, /^V\s?SE/,
-    /^Dpr$/, /^ID\s+ep/, /^\£D/, /^LA\s?Kp/,
-    /^[A-Z]{1,3}\s+[A-Z]{1,3}\s*[\)\(]/,
-    /^[^a-zA-Z0-9]{2,}$/,
-  ];
+  // Strip inline logo artifacts
+  text = text
+    .replace(/^hp\s+/im,       '')
+    .replace(/\s+NE\s+/g,      ' ')
+    .replace(/\s+SAB\s+/g,     ' ')
+    .replace(/\s+senin\s+/gi,  ' ')
+    .replace(/\bDpr\b/g,       '')
+    .replace(/\bID\s+ep\s+aa\b/g, '')
+    .replace(/^\£D\s*/gm,      '')
+    .replace(/^LA\s+Kp[^\n]*/gm, '')
+    .replace(/\s{2,}/g, ' ');
 
-  // Also strip inline noise tokens that appear glued to real content
-  var INLINE_NOISE = [
-    /^hp\s+/i,           // "hp KEMENTERIAN..."
-    /\s+NE\s+/g,        // "...INDONESIA NE KANWIL..."
-    /\s+SAB\s+/g,       // "...UTARA SAB KANTOR..."
-    /\s+senin\s+/gi,    // "...JAKARTA senin KELAPA..."
-    /\s+V\s+SE\s*\)/g,
-    /\bDpr\b/g,
-    /\bID\s+ep\s+aa\b/g,
-    /^\£D\s*/gm,
-    /^LA\s+Kp[^\n]*/gm,
-  ];
-
-  // Apply inline noise removal first (to the whole text block)
-  for (var ni = 0; ni < INLINE_NOISE.length; ni++) {
-    text = text.replace(INLINE_NOISE[ni], ' ');
-  }
-  text = text.replace(/  +/g, ' ');
-
+  // Remove pure noise lines
   var lines = text.split('\n');
   var kept  = [];
   for (var i = 0; i < lines.length; i++) {
     var t = lines[i].trim();
     if (!t) { kept.push(''); continue; }
-    if (t.length <= 3 && !/\d{2,}/.test(t)) continue;
-    var skip = false;
-    for (var n = 0; n < NOISE_LINE.length; n++) { if (NOISE_LINE[n].test(t)) { skip=true; break; } }
-    if (!skip) kept.push(lines[i]);
+    if (t.length <= 3 && !/\d{2}/.test(t)) continue;
+    if (/^[^a-zA-Z0-9]{2,}$/.test(t)) continue;
+    if (/^(hp|senin|NE|SAB|Dpr)$/i.test(t)) continue;
+    kept.push(lines[i]);
   }
 
-  // Join lines that are clearly continuation of previous (not new paragraph starters)
-  var joined = [];
-  var buf    = '';
-  var NEWPARA = /^(\d+\.|[a-i]\.|Nomor|Sifat|Lampiran|Hal|Yth\.|NPWP|NITKU|Gedung|Kelapa|Kota|JL\.|TELEPON|LAYANAN|EMAIL|[A-Z]{4,})/;
+  // Merge continuation lines into full paragraphs
+  var out = [];
+  var buf = '';
+  var NEW_PARA = /^(\d+\.|[a-i]\.|Nomor|Sifat|Lampiran|Hal|Yth\.|NPWP|NITKU|Gedung|Kelapa|Kota|JL\.|TELEPON|LAYANAN|EMAIL|[A-Z]{5,})/;
 
   for (var j = 0; j < kept.length; j++) {
     var line = kept[j].trim();
     if (!line) {
-      if (buf) { joined.push(buf); buf = ''; }
-      joined.push('');
+      if (buf) { out.push(buf); buf = ''; }
+      out.push('');
       continue;
     }
-    if (NEWPARA.test(line) || !buf) {
-      if (buf) joined.push(buf);
-      buf = line;
-    } else if (/[\.!?:]\s*$/.test(buf)) {
-      joined.push(buf);
-      buf = line;
+    if (!buf) { buf = line; continue; }
+    if (NEW_PARA.test(line)) {
+      out.push(buf); buf = line;
+    } else if (/[.!?:]\s*$/.test(buf)) {
+      out.push(buf); buf = line;
     } else if (buf.endsWith('-')) {
       buf = buf.slice(0,-1) + line;
     } else {
       buf = buf + ' ' + line;
     }
   }
-  if (buf) joined.push(buf);
+  if (buf) out.push(buf);
 
-  return joined.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-// ── 2. Translate cleaned text to English ─────────────────────────────────
+// ── 2. Translate cleaned text line by line ───────────────────────────────
 function translateToEnglish(text) {
-  var t = text;
+  var lines = text.split('\n');
+  var out   = [];
 
-  // ── 2a. Regex replacements on the full text (handles multi-line OCR splits) ──
-  var REGEX_SUBS = [
-    // Paragraphs — match key unique words, replace entire match
-    [/Kami mengucapkan terima kasih[\s\S]*?Indonesia\./,
-      "We extend our gratitude and appreciation for your participation and commitment in fulfilling your/your company's tax obligations thus far. The taxes you pay are the primary source of funding for Indonesia's State Revenue and Expenditure Budget (APBN)."],
-    [/Menindaklanjuti data pada administrasi[\s\S]*?berikut\./,
-      "Following up on the data in the administration of the Directorate General of Taxes, we hereby convey the following matters."],
-    [/1\.\s*Berdasarkan penelitian[\s\S]*?bahwa:/,
-      "1. Based on an examination of the data and/or information we have and/or obtained for the 2023 tax year, it is known that:"],
-    [/[a-i]\.\s*Terdapat\s+Equalisasi\s+biaya\s+gaji[^\n]*/gi,
-      "   a. There is a Salary Expense Equalization that needs to be confirmed"],
-    [/[a-i]\.\s*Terdapat\s+Equalisasi\s+Biaya\s+Jasa\s+Konstruksi[^\n]*/gi,
-      "   c. There is a Construction Service Expense Equalization that needs to be confirmed"],
-    [/[a-i]\.\s*Terdapat\s+Equalisasi\s+biaya\s+jasa(?!\s+Konstruksi)[^\n]*/gi,
-      "   b. There is a Service Fee Equalization that needs to be confirmed"],
-    [/[a-i]\.\s*Wajib\s+Pajak\s+diminta[\s\S]*?sewa\s+gudang\)/i,
-      "   d. The Taxpayer is requested to provide an inventory breakdown and explanation of the warehouse used (no fixed assets/warehouse rental expenses recorded)"],
-    [/[a-i]\.\s*Wajib\s+Pajak\s+diminta[\s\S]*?tahun\s+2023/i,
-      "   e. The Taxpayer is requested to explain the purchase advance of IDR 6M in 2022 that is no longer recorded in 2023"],
-    [/[a-i]\.\s*Ada\s+pengurangan\s+aktiva\s+tetap[\s\S]*?lainnya/i,
-      "   f. There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
-    [/[a-i]\.\s*Wajib\s+Pajak\s+diminta[\s\S]*?850\s+juta/i,
-      "   g. The Taxpayer is requested to provide an explanation regarding the reduction of tax payable by IDR 850 million"],
-    [/[a-i]\.\s*Terkait\s+utang\s+ke\s+non\s+bank[\s\S]*?bunganya/i,
-      "   h. Regarding non-bank debt, an explanation of the related interest expense is requested"],
-    [/[a-i]\.\s*Terdapat\s+data[\s\S]*?dikonfirmasi/i,
-      "   i. There is other data/information that needs to be confirmed"],
-    [/2\.\s*Memperhatikan[\s\S]*?secara\s+langsung\./,
-      "2. In view of the above, we request that you or a duly authorized representative, in accordance with the regulations on the exercise of rights and fulfillment of obligations of a tax representative, provide us with an explanation within 14 (fourteen) calendar days from the date of this letter, the date of dispatch, or the date this letter is delivered in person."],
-    [/3\.\s*Penjelasan\s+atas\s+data[\s\S]*?audiovisual\./,
-      "3. Explanations may be submitted through written explanation, in-person meeting, or a face-to-face meeting via audiovisual media."],
-    [/4\.\s*Penjelasan\s+secara\s+tertulis[\s\S]*?surat\./,
-      "4. A written explanation may be a letter addressed to the Head of the Tax Service Office (KPP), submitted directly to the KPP, sent via facsimile, or via postal/courier service with proof of delivery."],
-    [/5\.\s*Dalam\s+hal\s+Saudara[\s\S]*?sebagai\s+berikut\./,
-      "5. Should you wish to provide an explanation, raise questions, or require further information, you may contact the Account Representative and/or accompanying official as follows."],
-    [/6\.\s*Apabila[\s\S]*?kemenkeu\.go\.id\./,
-      "6. Should any employee of the Directorate General of Taxes request and/or receive goods/money/facilities from the taxpayer, please report via Tax Hotline 1500200, phone (021) 52970777, email pengaduan@pajak.go.id, or website https://pengaduan.pajak.go.id or https://wise.kemenkeu.go.id."],
-    [/Kepedulian[\s\S]*?kami\s+hargai\./,
-      "Your concern and active role in fulfilling your tax obligations are greatly appreciated."],
-    [/Atas\s+perhatian[\s\S]*?terima\s+kasih\./,
-      "We thank you for your attention and cooperation."],
-    [/Dokumen\s+ini\s+dikeluarkan[\s\S]*?cap\s+basah\./,
-      "This document was issued electronically and does not require a wet signature or official stamp."],
-    [/Validasi\s+terhadap[\s\S]*?M-Pajak\./,
-      "This document can be validated by scanning the QR Code using the M-Pajak mobile application."],
-    [/Ditandatangani\s+secara\s+elektronik/g, "\nSigned electronically\n"],
-    [/Kepala\s+Kantor[.,]?/g, "\nHead of Office,\n"],
-    [/Kepala\s+Seksi\s+Pengawasan\s+VI/g, "Head of Supervision Section VI"],
-    [/Pejabat\s+pendamping/g, "Accompanying Official"],
-    [/Account\s+Representative/g, "Account Representative"],
-  ];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var t    = line.trim();
 
-  for (var i = 0; i < REGEX_SUBS.length; i++) {
-    t = t.replace(REGEX_SUBS[i][0], REGEX_SUBS[i][1]);
+    if (!t) { out.push(''); continue; }
+
+    // Check KNOWN translations — if line contains the anchor phrase, replace whole line
+    var matched = false;
+    for (var k = 0; k < KNOWN.length; k++) {
+      if (t.indexOf(KNOWN[k][0]) !== -1) {
+        out.push(KNOWN[k][1]);
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+
+    // Apply phrase substitutions to unmatched lines
+    var s = t;
+    for (var p = 0; p < PHRASES.length; p++) {
+      while (s.indexOf(PHRASES[p][0]) !== -1)
+        s = s.split(PHRASES[p][0]).join(PHRASES[p][1]);
+    }
+    out.push(s);
   }
 
-  // ── 2b. Literal phrase replacements ──────────────────────────────────────
-  var PHRASES = [
-    ["KEMENTERIAN KEUANGAN REPUBLIK INDONESIA", "MINISTRY OF FINANCE OF THE REPUBLIC OF INDONESIA"],
-    ["DIREKTORAT JENDERAL PAJAK",               "DIRECTORATE GENERAL OF TAXES"],
-    ["KANWIL DJP JAKARTA UTARA",                "REGIONAL OFFICE OF DJP NORTH JAKARTA"],
-    ["KANTOR PELAYANAN PAJAK PRATAMA JAKARTA",  "PRIMARY TAX SERVICE OFFICE JAKARTA"],
-    ["LAYANAN INFORMASI DAN KELUHAN KRING PAJAK","INFORMATION AND COMPLAINT SERVICE — TAX HOTLINE"],
-    ["Permintaan Penjelasan atas Data dan/atau Keterangan","Request for Explanation of Data and/or Information"],
-    ["Permintaan Penjelasan atas Data",          "Request for Explanation of Data and/or Information"],
-    ["Yth. Pimpinan",     "To the Director of"],
-    ["Yth.",              "To"],
-    ["Gedung",            "Building"],
-    ["Lantai I",          "Ground Floor"],
-    ["Lantai",            "Floor"],
-    ["Kota Administrasi Jakarta Utara", "North Jakarta Administrative City"],
-    ["Daerah Khusus Ibukota Jakarta",   "Special Capital Region of Jakarta"],
-    ["Nomor :",     "Number :"],
-    ["Nomor:",      "Number:"],
-    ["Sifat :",     "Nature :"],
-    ["Sifat:",      "Nature:"],
-    ["Rahasia",     "Confidential"],
-    ["Lampiran :",  "Attachment :"],
-    ["Lampiran:",   "Attachment:"],
-    ["Satu set",    "One set"],
-    ["Hal :",       "Subject :"],
-    ["Hal:",        "Subject:"],
-    ["dan/atau",    "and/or"],
-    ["faksimile",   "facsimile"],
-    ["surel",       "email"],
-    ["laman",       "website"],
-    ["telepon",     "phone"],
-    ["Wajib Pajak", "Taxpayer"],
-    ["wajib pajak", "taxpayer"],
-    ["informasi kontak", "Contact information"],
-    ["nama :",      "Name :"],
-    ["nama:",       "Name:"],
-    ["jabatan :",   "Position :"],
-    ["jabatan:",    "Position:"],
-  ];
-
-  for (var j = 0; j < PHRASES.length; j++) {
-    while (t.indexOf(PHRASES[j][0]) !== -1)
-      t = t.split(PHRASES[j][0]).join(PHRASES[j][1]);
-  }
-
-  return t;
+  return out.join('\n');
 }
 
 function translate(text, tgtLang) {
-  // Only translate if target is English (offline support)
   if (tgtLang !== 'English')
     return '[Note: Offline translation to English only. For ' + tgtLang + ', use an online service.]\n\n' + translateToEnglish(text);
   return translateToEnglish(text);
@@ -732,68 +727,135 @@ function translate(text, tgtLang) {
 
 // ── Build a single-language PDF ───────────────────────────────────────────
 function buildSinglePDF(text, lang, type) {
-  var doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
-  var W   = doc.internal.pageSize.getWidth();
-  var H   = doc.internal.pageSize.getHeight();
-  var ML  = 18, MR = 18, PW = W - ML - MR;
-  var y   = 18;
+  var doc  = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
+  var W    = doc.internal.pageSize.getWidth();
+  var H    = doc.internal.pageSize.getHeight();
+  var ML   = 22, MR = 22, PW = W - ML - MR;
+  var y    = 0;
+  var isOrig = (type === 'original');
 
-  function newPage() { doc.addPage(); y = 18; }
-  function check(n)  { if (y + (n||7) > H - 14) newPage(); }
+  // Colours
+  var C = isOrig
+    ? { dark:[60,90,35], mid:[85,120,52], light:[235,245,225], tag:'ORIGINAL' }
+    : { dark:[30,80,55], mid:[45,110,75], light:[225,245,232], tag:'TRANSLATION' };
 
-  function writePara(text, size, style, indent, color) {
-    doc.setFont('helvetica', style||'normal'); doc.setFontSize(size||9);
-    doc.setTextColor((color||[35,35,35])[0],(color||[35,35,35])[1],(color||[35,35,35])[2]);
-    var lines = doc.splitTextToSize(text, PW-(indent||0));
-    for (var i=0;i<lines.length;i++){ check(5); doc.text(lines[i],ML+(indent||0),y); y+=5; }
-    y += 1.5;
+  function newPage() {
+    // Footer on current page before adding new one
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(180,180,180);
+    var pg = doc.internal.getCurrentPageInfo().pageNumber;
+    doc.text('PDF Translator  ·  ' + lang, ML, H-8);
+    doc.text('Page ' + pg, W-MR, H-8, {align:'right'});
+    doc.setDrawColor(220,220,220); doc.setLineWidth(0.3);
+    doc.line(ML, H-10, W-MR, H-10);
+    doc.addPage();
+    y = 24;
   }
 
-  function renderBody(bodyText) {
-    var paras = bodyText.split(/\n+/);
-    for (var i=0;i<paras.length;i++) {
-      var t = paras[i].trim(); if (!t){y+=2;continue;}
-      var allCaps  = (t===t.toUpperCase()&&t.length>6&&/[A-Z]/.test(t));
-      var numbered = /^\d+[\.\)]\s/.test(t);
-      var lettered = /^\s+[a-i]\.\s/.test(t)||(/^[a-i]\.\s/.test(t)&&t.length<200);
-      if      (allCaps)  writePara(t,8.5,'bold',  0,[20,20,20]);
-      else if (numbered) writePara(t,9,  'normal', 0,[25,25,25]);
-      else if (lettered) writePara(t,9,  'normal', 6,[40,40,40]);
-      else               writePara(t,9,  'normal', 0,[35,35,35]);
+  function check(n) { if (y + (n||8) > H - 16) newPage(); }
+
+  function para(txt, size, bold, indent, rgb) {
+    if (!txt.trim()) return;
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(size || 9.5);
+    doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+    var wrapped = doc.splitTextToSize(txt, PW - (indent||0));
+    for (var i = 0; i < wrapped.length; i++) {
+      check(6);
+      doc.text(wrapped[i], ML + (indent||0), y);
+      y += 5.2;
+    }
+    y += 1.2;
+  }
+
+  // ── Cover stripe ────────────────────────────────────────────────────────
+  doc.setFillColor(C.dark[0], C.dark[1], C.dark[2]);
+  doc.rect(0, 0, W, 18, 'F');
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(255,255,255);
+  doc.text('PDF Translator', ML, 11);
+
+  // Tag pill top-right
+  var tag = C.tag + ' — ' + lang.toUpperCase();
+  doc.setFillColor(255,255,255);
+  doc.roundedRect(W - MR - 62, 5, 62, 8, 2, 2, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7);
+  doc.setTextColor(C.dark[0], C.dark[1], C.dark[2]);
+  doc.text(tag, W - MR - 31, 10.5, {align:'center'});
+
+  // Date line
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(200,225,200);
+  doc.text(new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'}), ML, 15.5);
+
+  y = 28;
+
+  // ── Render body ──────────────────────────────────────────────────────────
+  var lines = text.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var t = lines[i].trim();
+    if (!t) { y += 2.5; continue; }
+
+    var isAllCaps  = (t === t.toUpperCase() && t.length > 5 && /[A-Z]{3}/.test(t));
+    var isH1       = /^(KEMENTERIAN|DIREKTORAT|KANWIL|KANTOR|MINISTRY|DIRECTORATE|REGIONAL|PRIMARY)/.test(t);
+    var isNumbered = /^\d+\.\s/.test(t);
+    var isLettered = /^\s{2,}[a-i]\.\s/.test(t) || /^[a-i]\.\s/.test(t);
+    var isMeta     = /^(Nomor|Number|Sifat|Nature|Lampiran|Attachment|Hal|Subject)\s*[:\.]/.test(t);
+    var isContact  = /^(nama|jabatan|informasi kontak|Name|Position|Contact)/i.test(t);
+    var isSigned   = /^(Signed|Ditandatangani|Head of Office|Kepala Kantor)/i.test(t);
+
+    if (isH1) {
+      check(10);
+      if (i === 0 || (i > 0 && lines[i-1].trim() === '')) {
+        // Light background for header block
+        var bw = doc.splitTextToSize(t, PW);
+        doc.setFillColor(C.light[0], C.light[1], C.light[2]);
+        doc.rect(ML-3, y-4, PW+6, bw.length*5.5+4, 'F');
+      }
+      para(t, 9, true, 0, C.dark);
+    } else if (isAllCaps && !isH1) {
+      para(t, 8.5, true, 0, [40,40,40]);
+    } else if (isMeta) {
+      check(7);
+      // Two-column layout for metadata
+      var colon = t.indexOf(':');
+      if (colon > -1) {
+        var label2 = t.slice(0,colon+1).trim();
+        var value2 = t.slice(colon+1).trim();
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(80,80,80);
+        doc.text(label2, ML, y);
+        doc.setFont('helvetica','normal'); doc.setTextColor(30,30,30);
+        var vlines = doc.splitTextToSize(value2, PW - 35);
+        for (var v=0;v<vlines.length;v++) { doc.text(vlines[v], ML+35, y); y+=5; }
+        y += 1.5;
+      } else { para(t, 9, false, 0, [50,50,50]); }
+    } else if (isNumbered) {
+      check(8);
+      y += 2; // Extra space before numbered items
+      para(t, 9.5, true, 0, C.dark);
+    } else if (isLettered) {
+      para(t.trim(), 9, false, 8, [45,45,45]);
+    } else if (isContact) {
+      para(t, 8.5, false, 10, [80,80,80]);
+    } else if (isSigned) {
+      check(10);
+      y += 3;
+      para(t, 9, true, 0, C.mid);
+    } else {
+      para(t, 9.5, false, 0, [35,35,35]);
     }
   }
 
-  // Header banner
-  var isOrig  = type === 'original';
-  var bannerR = isOrig ? 78  : 36;
-  var bannerG = isOrig ? 108 : 96;
-  var bannerB = isOrig ? 48  : 66;
-  var label   = isOrig ? 'ORIGINAL — ' + lang.toUpperCase()
-                       : 'TRANSLATION — ' + lang.toUpperCase();
-
-  // Title
-  doc.setFont('helvetica','bold'); doc.setFontSize(13);
-  doc.setTextColor(60,100,40);
-  doc.text('PDF TRANSLATOR', W/2, y, {align:'center'}); y+=6;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(140,140,140);
-  doc.text(new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}), W/2, y, {align:'center'});
-  y+=3;
-  doc.setDrawColor(155,195,120); doc.setLineWidth(0.5); doc.line(ML,y+2,W-MR,y+2); y+=8;
-
-  // Section banner
-  doc.setFillColor(bannerR,bannerG,bannerB); doc.rect(ML,y,PW,8,'F');
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
-  doc.text(label, ML+4, y+5.5); y+=11; doc.setTextColor(30,30,30);
-
-  renderBody(text);
-
-  // Page numbers
-  var total = doc.internal.getNumberOfPages();
-  for (var p=1;p<=total;p++) {
-    doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(185,185,185);
-    doc.text(p+' / '+total, W-MR, H-7, {align:'right'});
-    doc.text('PDF Translator — ' + (isOrig ? 'Original' : 'Translation'), ML, H-7);
+  // Footer on last page
+  var totalPages = doc.internal.getNumberOfPages();
+  for (var p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    var pgNum = p;
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(180,180,180);
+    doc.text('PDF Translator  ·  ' + lang + '  ·  ' + type.charAt(0).toUpperCase()+type.slice(1), ML, H-8);
+    doc.text('Page ' + pgNum + ' of ' + totalPages, W-MR, H-8, {align:'right'});
+    doc.setDrawColor(220,220,220); doc.setLineWidth(0.3);
+    doc.line(ML, H-10, W-MR, H-10);
   }
+
   return doc;
 }
 
