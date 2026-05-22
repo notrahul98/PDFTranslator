@@ -265,7 +265,7 @@ footer a:hover { color:var(--accent); }
 
   <!-- OCR setup notice -->
   <div class="info-box">
-    <strong>📋 How extraction works:</strong> Text-based PDFs are read instantly with pdf.js. Scanned PDFs use Tesseract OCR over the internet (~15 MB first time, then cached). Keep this page open until the progress log passes “OCR ready”.
+    <strong>📋 How extraction works:</strong> Text-based PDFs use pdf.js. Scanned PDFs use OCR (~15 MB first download). You must upload <code>tesseract.worker.min.js</code> next to <code>index.html</code> on GitHub Pages. Keep this tab open until the log shows “OCR ready”.
   </div>
 
   <!-- Step 1 -->
@@ -376,9 +376,14 @@ footer a:hover { color:var(--accent); }
 // ── pdf.js worker ─────────────────────────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
-// Tesseract v5 CDN (all parts must match — local v7 min.js + v5 worker was causing hang at 14%)
+// Tesseract v5 — worker MUST be same-origin on GitHub Pages (cross-origin Worker is blocked).
+// Core + language packs can load from CDN inside the worker.
+function getAppBase() {
+  var path = window.location.pathname.replace(/[^/]*$/, '');
+  return window.location.origin + path;
+}
 var TESS = {
-  worker: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+  worker: getAppBase() + 'tesseract.worker.min.js',
   core:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/',
   lang:   'https://tessdata.projectnaptha.com/4.0.0_best'
 };
@@ -390,6 +395,45 @@ function withTimeout(promise, ms, message) {
       setTimeout(function() { reject(new Error(message)); }, ms);
     })
   ]);
+}
+
+function tessLogger(m) {
+  if (m.status === 'loading tesseract core') {
+    setProgress(14, 'Loading OCR core…');
+    addLog('Loading WASM core…', 'ocr');
+  } else if (m.status === 'loading language traineddata') {
+    var pct = m.progress ? Math.round(m.progress * 100) : 0;
+    setProgress(18 + pct * 0.12, 'Downloading language… ' + pct + '%');
+    addLog('Language pack: ' + pct + '%', 'ocr');
+  } else if (m.status === 'initializing api') {
+    setProgress(32, 'Initialising OCR…');
+  } else if (m.status === 'initialized tesseract') {
+    addLog('OCR ready', 'ok');
+  }
+}
+
+async function createTessWorker(ocrLang) {
+  var base = {
+    corePath: TESS.core,
+    langPath: TESS.lang,
+    gzip: true,
+    cacheMethod: 'none',
+    logger: tessLogger
+  };
+  try {
+    addLog('Worker: same-origin (' + TESS.worker + ')', 'info');
+    return await Tesseract.createWorker(ocrLang, 1, Object.assign({
+      workerPath: TESS.worker,
+      workerBlobURL: false
+    }, base));
+  } catch (errLocal) {
+    addLog('Local worker failed: ' + errLocal.message, 'warn');
+    addLog('Fallback: CDN worker via blob URL…', 'warn');
+    return await Tesseract.createWorker(ocrLang, 1, Object.assign({
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+      workerBlobURL: true
+    }, base));
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -590,28 +634,7 @@ async function extractTextOCR(file, pdf, ocrLang, onPageProgress) {
 
     addLog('Downloading OCR engine (first time may take 1–2 min)…', 'ocr');
     worker = await withTimeout(
-      Tesseract.createWorker(ocrLang, 1, {
-        workerPath: TESS.worker,
-        corePath: TESS.core,
-        langPath: TESS.lang,
-        workerBlobURL: false,
-        gzip: true,
-        cacheMethod: 'none',
-        logger: function(m) {
-          if (m.status === 'loading tesseract core') {
-            setProgress(14, 'Loading OCR core…');
-            addLog('Loading WASM core…', 'ocr');
-          } else if (m.status === 'loading language traineddata') {
-            var pct = m.progress ? Math.round(m.progress * 100) : 0;
-            setProgress(18 + pct * 0.12, 'Downloading ' + ocrLang + ' language… ' + pct + '%');
-            addLog('Language pack ' + ocrLang + ': ' + pct + '%', 'ocr');
-          } else if (m.status === 'initializing api') {
-            setProgress(32, 'Initialising OCR…');
-          } else if (m.status === 'initialized tesseract') {
-            addLog('OCR ready', 'ok');
-          }
-        }
-      }),
+      createTessWorker(ocrLang),
       180000,
       'OCR engine timed out after 3 minutes. Check your internet connection, refresh the page, and try again.'
     );

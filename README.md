@@ -30,7 +30,9 @@ Browser-based tool for Indonesian government tax letters (PDF). Produces two dow
 | `jspdf.umd.min.js` | Yes |
 | `README.md` | Optional |
 
-**OCR runs from CDN** (jsdelivr + tessdata). You do **not** need to upload the local `tesseract*.js` / `tesseract*.wasm` files unless you want a fully self-hosted copy later.
+| `tesseract.worker.min.js` | **Yes** — must be same folder as `index.html` (GitHub Pages blocks CDN workers) |
+
+OCR **core** and **language** files load from CDN (internet required first time). The main `tesseract.min.js` loads from CDN in `index.html`.
 
 **Do not upload** `auth.js` or `storage.js` if present — they are unrelated leftovers.
 
