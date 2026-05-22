@@ -1,8 +1,8 @@
-# PDF Translator v2.2
+# PDF Translator v2.3
 
 Browser-based tool for Indonesian government tax letters (PDF). Produces two downloadable PDFs: a cleaned original and an English translation.
 
-**v2.2 fixes:** critical newline bug in cleaning, Force OCR default for scanned letters, document-level translation (not line-by-line), simpler PDF layout.
+**v2.3 fix:** OCR stuck at 14% — caused by mismatched Tesseract v7 + v5 files. Now uses matching **Tesseract v5.1.1 from CDN** for worker, core, and language data.
 
 ## Features
 
@@ -28,11 +28,9 @@ Browser-based tool for Indonesian government tax letters (PDF). Produces two dow
 | `pdf.min.js` | Yes |
 | `pdf.worker.min.js` | Yes |
 | `jspdf.umd.min.js` | Yes |
-| `tesseract.min.js` | Yes |
-| `tesseract.worker.min.js` | Yes |
-| `tesseract-core-lstm.js` | Yes |
-| `tesseract-core-lstm.wasm` | Yes |
 | `README.md` | Optional |
+
+**OCR runs from CDN** (jsdelivr + tessdata). You do **not** need to upload the local `tesseract*.js` / `tesseract*.wasm` files unless you want a fully self-hosted copy later.
 
 **Do not upload** `auth.js` or `storage.js` if present — they are unrelated leftovers.
 

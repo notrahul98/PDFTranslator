@@ -4,10 +4,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PDF Translator v2.2 — Offline</title>
+<title>PDF Translator v2.3 — Offline</title>
 <script src="pdf.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
-<script src="tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -265,7 +265,7 @@ footer a:hover { color:var(--accent); }
 
   <!-- OCR setup notice -->
   <div class="info-box">
-    <strong>📋 How extraction works:</strong> Text-based PDFs are read instantly with pdf.js (fully offline). Scanned PDFs use Tesseract OCR — language data (~10 MB) downloads once on first OCR, then stays cached in your browser.
+    <strong>📋 How extraction works:</strong> Text-based PDFs are read instantly with pdf.js. Scanned PDFs use Tesseract OCR over the internet (~15 MB first time, then cached). Keep this page open until the progress log passes “OCR ready”.
   </div>
 
   <!-- Step 1 -->
@@ -375,6 +375,22 @@ footer a:hover { color:var(--accent); }
 <script>
 // ── pdf.js worker ─────────────────────────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+
+// Tesseract v5 CDN (all parts must match — local v7 min.js + v5 worker was causing hang at 14%)
+var TESS = {
+  worker: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+  core:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/',
+  lang:   'https://tessdata.projectnaptha.com/4.0.0_best'
+};
+
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise(function(_, reject) {
+      setTimeout(function() { reject(new Error(message)); }, ms);
+    })
+  ]);
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function ge(id) { return document.getElementById(id); }
@@ -572,22 +588,33 @@ async function extractTextOCR(file, pdf, ocrLang, onPageProgress) {
     addLog('Creating OCR worker (' + ocrLang + ')…', 'ocr');
     setProgress(12, 'Loading OCR engine…');
 
-    worker = await Tesseract.createWorker(ocrLang, 1, {
-      workerPath: 'tesseract.worker.min.js',
-      corePath:   'tesseract-core-lstm.js',
-      langPath:   'https://tessdata.projectnaptha.com/4.0.0_best',
-      logger: function(m) {
-        if (m.status === 'loading tesseract core') {
-          setProgress(14, 'Loading OCR core…');
-        } else if (m.status === 'loading language traineddata') {
-          setProgress(20, 'Downloading language data (cached after first use)…');
-          addLog('Fetching ' + ocrLang + ' language data from CDN…', 'ocr');
-        } else if (m.status === 'initializing api') {
-          setProgress(27, 'Initialising OCR engine…');
-          addLog('OCR engine initialising…', 'ocr');
+    addLog('Downloading OCR engine (first time may take 1–2 min)…', 'ocr');
+    worker = await withTimeout(
+      Tesseract.createWorker(ocrLang, 1, {
+        workerPath: TESS.worker,
+        corePath: TESS.core,
+        langPath: TESS.lang,
+        workerBlobURL: false,
+        gzip: true,
+        cacheMethod: 'none',
+        logger: function(m) {
+          if (m.status === 'loading tesseract core') {
+            setProgress(14, 'Loading OCR core…');
+            addLog('Loading WASM core…', 'ocr');
+          } else if (m.status === 'loading language traineddata') {
+            var pct = m.progress ? Math.round(m.progress * 100) : 0;
+            setProgress(18 + pct * 0.12, 'Downloading ' + ocrLang + ' language… ' + pct + '%');
+            addLog('Language pack ' + ocrLang + ': ' + pct + '%', 'ocr');
+          } else if (m.status === 'initializing api') {
+            setProgress(32, 'Initialising OCR…');
+          } else if (m.status === 'initialized tesseract') {
+            addLog('OCR ready', 'ok');
+          }
         }
-      }
-    });
+      }),
+      180000,
+      'OCR engine timed out after 3 minutes. Check your internet connection, refresh the page, and try again.'
+    );
 
     addLog('OCR engine ready — processing ' + numPages + ' page(s)…', 'ok');
 
