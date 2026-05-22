@@ -1,0 +1,49 @@
+# PDF Translator
+
+Browser-based tool for Indonesian government tax letters (PDF). Produces two downloadable PDFs: a cleaned original and an English translation.
+
+## Features
+
+- Runs entirely in the browser — no backend, no API key
+- Text PDFs: extracted instantly with pdf.js (offline)
+- Scanned PDFs: OCR via Tesseract.js (language data cached after first download)
+- Built-in dictionary for Indonesian tax/legal terms → English
+- Olive green UI, two download buttons
+
+## Deploy to GitHub Pages
+
+1. Create a repo (e.g. `PDFTranslator`) on GitHub.
+2. Upload **all files** in this folder to the repo root (not in a subfolder).
+3. Go to **Settings → Pages → Build and deployment**.
+4. Source: **Deploy from a branch** → branch `main` (or `master`) → folder `/ (root)`.
+5. Save. Your site will be at `https://<username>.github.io/PDFTranslator/`.
+
+## Files to upload
+
+| File | Required |
+|------|----------|
+| `index.html` | Yes |
+| `pdf.min.js` | Yes |
+| `pdf.worker.min.js` | Yes |
+| `jspdf.umd.min.js` | Yes |
+| `tesseract.min.js` | Yes |
+| `tesseract.worker.min.js` | Yes |
+| `tesseract-core-lstm.js` | Yes |
+| `tesseract-core-lstm.wasm` | Yes |
+| `README.md` | Optional |
+
+**Do not upload** `auth.js` or `storage.js` if present — they are unrelated leftovers.
+
+## Local test
+
+Serve the folder with any static server, for example:
+
+```bash
+npx serve .
+```
+
+Then open `http://localhost:3000` (or the port shown).
+
+## First OCR run
+
+The first time you process a **scanned** PDF, the browser downloads ~10 MB of language data from `tessdata.projectnaptha.com`. After that it is cached. Text-based PDFs need no download.

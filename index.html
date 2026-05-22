@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<!-- PDF TRANSLATOR v2.0 — TWO DOWNLOAD BUTTONS -->
+<!-- PDF TRANSLATOR v2.1 — Indonesian tax letters → two PDFs -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PDF Translator v2.0 — Offline</title>
+<title>PDF Translator v2.1 — Offline</title>
 <script src="pdf.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="tesseract.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -126,6 +126,7 @@ h1 em { font-style: normal; color: var(--accent); }
 .upload-hint { font-size: 13.5px; color: var(--text2); margin-bottom: 14px; }
 
 .btn-browse {
+  display: inline-block;
   background: var(--accent); color: #fff; border: none;
   padding: 10px 28px; font-family: inherit; font-size: 14px; font-weight: 600;
   border-radius: 8px; cursor: pointer;
@@ -134,6 +135,7 @@ h1 em { font-style: normal; color: var(--accent); }
 }
 .btn-browse:hover { background: var(--accent-lt); transform: translateY(-1px); }
 .btn-browse:active { transform: scale(.98); }
+.upload-area.has-file { padding-bottom: 20px; }
 .upload-sub { font-size: 12px; color: var(--muted); margin-top: 10px; }
 
 /* ── File pill ── */
@@ -221,8 +223,9 @@ h1 em { font-style: normal; color: var(--accent); }
 .res-title { font-size:14px; font-weight:700; color:var(--success); }
 .res-sub { font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-.dl-row { display:none; gap:10px; margin-top:10px; }
+.dl-row { display:none; gap:10px; margin-top:12px; }
 .dl-row.show { display:grid; grid-template-columns:1fr 1fr; }
+@media(max-width:500px){ .dl-row.show{ grid-template-columns:1fr; } }
 
 .btn-dl {
   border:none; padding:12px 16px; font-family:inherit; font-size:13px; font-weight:700;
@@ -256,31 +259,31 @@ footer a:hover { color:var(--accent); }
       <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h5v1.5H8V16zm0-6h2v1.5H8V10z"/></svg>
     </div>
     <h1>PDF <em>Translator</em></h1>
-    <p class="subtitle">Extract · OCR · Translate · Save as bilingual PDF</p>
-    <span class="badge"><span class="badge-dot"></span>100% Offline — No Internet Needed</span>
+    <p class="subtitle">Extract · Clean · Translate · Download two PDFs</p>
+    <span class="badge"><span class="badge-dot"></span>Runs in your browser — no API key</span>
   </header>
 
   <!-- OCR setup notice -->
   <div class="info-box">
-    <strong>📋 Scanned PDF support:</strong> OCR language data (~10 MB) is downloaded automatically from the internet the <em>first time</em> you process a scanned PDF, then cached by your browser. Text-based PDFs work fully offline with no download needed.
+    <strong>📋 How extraction works:</strong> Text-based PDFs are read instantly with pdf.js (fully offline). Scanned PDFs use Tesseract OCR — language data (~10 MB) downloads once on first OCR, then stays cached in your browser.
   </div>
 
   <!-- Step 1 -->
   <div class="card">
     <div class="card-label">Step 1 — Upload PDF</div>
-    <input type="file" id="fileInput" accept=".pdf" style="display:none">
+    <input type="file" id="fileInput" accept=".pdf,application/pdf" hidden>
     <div class="upload-area" id="uploadArea">
       <span class="upload-icon">📄</span>
       <p class="upload-hint">Drag &amp; drop your PDF here</p>
-      <button class="btn-browse" id="btnBrowse" type="button">📂 Choose File</button>
+      <label class="btn-browse" for="fileInput" id="btnBrowse">📂 Choose File</label>
       <p class="upload-sub">PDF only · max 20 MB · text or scanned</p>
+    </div>
     <div class="file-pill" id="filePill">
       <span class="fp-icon">📎</span>
       <span class="fp-name" id="filePillName"></span>
       <span class="fp-badge" id="filePillBadge"></span>
-      <button class="fp-remove" id="btnRemove" type="button">✕</button>
+      <button class="fp-remove" id="btnRemove" type="button" aria-label="Remove file">✕</button>
     </div>
-  </div>
 
   <!-- Step 2 -->
   <div class="card">
@@ -298,20 +301,21 @@ footer a:hover { color:var(--accent); }
       <div class="field">
         <label>To</label>
         <select id="tgtLang">
-          <option value="English" selected>English</option>
-          <option value="Mandarin Chinese">Mandarin Chinese</option>
-          <option value="Arabic">Arabic</option>
-          <option value="Spanish">Spanish</option>
-          <option value="French">French</option>
-          <option value="German">German</option>
-          <option value="Japanese">Japanese</option>
-          <option value="Korean">Korean</option>
+          <option value="English" selected>English (offline dictionary)</option>
+          <option value="Mandarin Chinese" disabled>Mandarin Chinese (online only)</option>
+          <option value="Arabic" disabled>Arabic (online only)</option>
+          <option value="Spanish" disabled>Spanish (online only)</option>
+          <option value="French" disabled>French (online only)</option>
+          <option value="German" disabled>German (online only)</option>
+          <option value="Japanese" disabled>Japanese (online only)</option>
+          <option value="Korean" disabled>Korean (online only)</option>
         </select>
       </div>
     </div>
-    <div class="ocr-note show" id="ocrNote">
-      ⚠️ <strong>OCR mode:</strong> Language data will be downloaded automatically (~10 MB, one-time). Make sure you have an internet connection for the first OCR run — it will be cached after that.
-    </div>  </div>
+    <div class="ocr-note" id="ocrNote">
+      ⚠️ <strong>Scanned PDFs:</strong> OCR language data (~10 MB) downloads once on first use, then is cached. Text-based PDFs need no download.
+    </div>
+  </div>
 
   <!-- Step 3 -->
   <div class="card">
@@ -337,12 +341,12 @@ footer a:hover { color:var(--accent); }
         <div class="res-sub" id="resSub"></div>
       </div>
     </div>
-    <div id="dlRow" style="display:none; margin-top:12px; gap:10px; grid-template-columns:1fr 1fr;">
-      <button id="btnDlOrig" type="button" style="background:#e8f0de;color:#385f50;border:1.5px solid #b8d49a;padding:14px 10px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center;line-height:1.6;">
-        &#x1F1EE;&#x1F1E9; Download Original<br><span style="font-size:11px;font-weight:400;">Indonesian (cleaned)</span>
+    <div class="dl-row" id="dlRow">
+      <button class="btn-dl btn-dl-orig" id="btnDlOrig" type="button">
+        🇮🇩 Download Original<small id="dlOrigLabel">Indonesian (cleaned)</small>
       </button>
-      <button id="btnDlTrans" type="button" style="background:#386b48;color:#fff;border:none;padding:14px 10px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:center;line-height:1.6;">
-        &#x1F1EC;&#x1F1E7; Download Translation<br><span id="dlTransLabel" style="font-size:11px;font-weight:400;">English</span>
+      <button class="btn-dl btn-dl-trans" id="btnDlTrans" type="button">
+        🇬🇧 Download Translation<small id="dlTransLabel">English</small>
       </button>
     </div>
   </div>
@@ -353,7 +357,7 @@ footer a:hover { color:var(--accent); }
     <div class="steps">
       <div class="step"><div class="step-num">1</div><div class="step-txt">pdf.js tries to extract real text; if the PDF is scanned, Tesseract.js runs OCR on each page image</div></div>
       <div class="step"><div class="step-num">2</div><div class="step-txt">Built-in dictionary maps Indonesian tax &amp; legal terms to English</div></div>
-      <div class="step"><div class="step-num">3</div><div class="step-txt">jsPDF assembles original + translation into one bilingual PDF saved to your device</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-txt">jsPDF builds two separate PDFs — cleaned original and English translation — saved to your device</div></div>
     </div>
   </div>
 
@@ -372,68 +376,87 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 function ge(id) { return document.getElementById(id); }
 
 var selectedFile = null;
-var outputBlob   = null;
+var blobOrig = null;
+var blobTrans = null;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
-var fileInput    = ge('fileInput');
-var uploadArea   = ge('uploadArea');
-var btnBrowse    = ge('btnBrowse');
-var filePill     = ge('filePill');
-var filePillName = ge('filePillName');
-var filePillBadge= ge('filePillBadge');
-var btnRemove    = ge('btnRemove');
-var btnRun       = ge('btnRun');
-var progressWrap = ge('progressWrap');
-var progFill     = ge('progFill');
-var progPct      = ge('progPct');
-var progLabel    = ge('progLabel');
-var logEl        = ge('log');
-var resultWrap   = ge('resultWrap');
-var resSub       = ge('resSub');
-var btnDownload  = ge('btnDownload');
-var srcLangSel   = ge('srcLang');
-var ocrNote      = ge('ocrNote');
+var fileInput     = ge('fileInput');
+var uploadArea    = ge('uploadArea');
+var filePill      = ge('filePill');
+var filePillName  = ge('filePillName');
+var filePillBadge = ge('filePillBadge');
+var btnRemove     = ge('btnRemove');
+var btnRun        = ge('btnRun');
+var progressWrap  = ge('progressWrap');
+var progFill      = ge('progFill');
+var progPct       = ge('progPct');
+var progLabel     = ge('progLabel');
+var logEl         = ge('log');
+var resultWrap    = ge('resultWrap');
+var resSub        = ge('resSub');
+var dlRow         = ge('dlRow');
+var srcLangSel    = ge('srcLang');
+var ocrNote       = ge('ocrNote');
+
+function resetResults() {
+  resultWrap.classList.remove('show');
+  dlRow.classList.remove('show');
+  progressWrap.classList.remove('show');
+  logEl.innerHTML = '';
+  blobOrig = null;
+  blobTrans = null;
+}
 
 // ── File selection ────────────────────────────────────────────────────────
 function acceptFile(file) {
   if (!file) return;
-  if (file.type !== 'application/pdf') { alert('Please choose a PDF file.'); return; }
-  if (file.size > 20 * 1024 * 1024)   { alert('File is too large. Max 20 MB.'); return; }
+  if (file.type && file.type !== 'application/pdf') { alert('Please choose a PDF file.'); return; }
+  if (!/\.pdf$/i.test(file.name)) { alert('Please choose a PDF file.'); return; }
+  if (file.size > 20 * 1024 * 1024) { alert('File is too large. Max 20 MB.'); return; }
   selectedFile = file;
   filePillName.textContent  = file.name;
   filePillBadge.textContent = '✓ Ready';
   filePillBadge.className   = 'fp-badge text-pdf';
   filePill.classList.add('show');
+  uploadArea.classList.add('has-file');
   btnRun.disabled = false;
-  resultWrap.classList.remove('show');
-  progressWrap.classList.remove('show');
-  logEl.innerHTML = '';
+  resetResults();
 }
-
-btnBrowse.addEventListener('click', function() { fileInput.value = ''; fileInput.click(); });
-
-uploadArea.addEventListener('click', function(e) {
-  if (e.target !== btnBrowse) { fileInput.value = ''; fileInput.click(); }
-});
 
 fileInput.addEventListener('change', function() {
   if (fileInput.files && fileInput.files[0]) acceptFile(fileInput.files[0]);
 });
 
-btnRemove.addEventListener('click', function() {
+btnRemove.addEventListener('click', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
   selectedFile = null;
   filePill.classList.remove('show');
+  uploadArea.classList.remove('has-file');
   fileInput.value = '';
   btnRun.disabled = true;
-  resultWrap.classList.remove('show');
-  ge('dlRow').style.display = 'none';
-  progressWrap.classList.remove('show');
-  logEl.innerHTML = '';
+  resetResults();
 });
 
-uploadArea.addEventListener('dragover',  function(e) { e.preventDefault(); uploadArea.classList.add('drag-over'); });
-uploadArea.addEventListener('dragleave', function(e) { if (!uploadArea.contains(e.relatedTarget)) uploadArea.classList.remove('drag-over'); });
-uploadArea.addEventListener('drop',      function(e) { e.preventDefault(); uploadArea.classList.remove('drag-over'); if (e.dataTransfer.files[0]) acceptFile(e.dataTransfer.files[0]); });
+filePill.addEventListener('click', function(e) { e.stopPropagation(); });
+
+uploadArea.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  uploadArea.classList.add('drag-over');
+});
+uploadArea.addEventListener('dragleave', function(e) {
+  if (!uploadArea.contains(e.relatedTarget)) uploadArea.classList.remove('drag-over');
+});
+uploadArea.addEventListener('drop', function(e) {
+  e.preventDefault();
+  uploadArea.classList.remove('drag-over');
+  var f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) acceptFile(f);
+});
+
+srcLangSel.addEventListener('change', function() {
+  ocrNote.classList.add('show');
+});
 
 // ── Logging ───────────────────────────────────────────────────────────────
 function addLog(msg, cls) {
@@ -450,28 +473,63 @@ function setProgress(pct, label) {
   if (label) progLabel.textContent = label;
 }
 
-// ── Render PDF page to canvas, return ImageData URL ───────────────────────
-async function renderPageToDataURL(file, pageNum, scale) {
-  scale = scale || 2.5;
-  var buf  = await file.arrayBuffer();
-  var pdf  = await pdfjsLib.getDocument({ data: buf }).promise;
-  var page = await pdf.getPage(pageNum);
-  var vp   = page.getViewport({ scale: scale });
+// ── Open PDF document (reuse buffer) ──────────────────────────────────────
+async function openPdf(file) {
+  var buf = await file.arrayBuffer();
+  return pdfjsLib.getDocument({ data: buf }).promise;
+}
 
-  var canvas    = document.createElement('canvas');
-  canvas.width  = Math.floor(vp.width);
-  canvas.height = Math.floor(vp.height);
-  var ctx = canvas.getContext('2d');
+// ── Extract embedded text with pdf.js ─────────────────────────────────────
+async function extractTextPdfJs(pdf) {
+  var parts = [];
+  for (var i = 1; i <= pdf.numPages; i++) {
+    var page = await pdf.getPage(i);
+    var content = await page.getTextContent();
+    var line = '';
+    var lastY = null;
+    for (var j = 0; j < content.items.length; j++) {
+      var item = content.items[j];
+      if (lastY !== null && Math.abs(item.transform[5] - lastY) > 2) line += '\n';
+      line += item.str;
+      if (item.hasEOL) line += '\n';
+      lastY = item.transform[5];
+    }
+    parts.push(line.trim());
+    setProgress(5 + (i / pdf.numPages) * 20, 'Reading page ' + i + '/' + pdf.numPages + '…');
+  }
+  return parts.join('\n\n');
+}
 
-  await page.render({ canvasContext: ctx, viewport: vp }).promise;
-  return { dataUrl: canvas.toDataURL('image/png'), numPages: pdf.numPages };
+function textLayerLooksValid(text, numPages) {
+  var letters = (text.match(/[a-zA-Z\u00C0-\u024F\u0400-\u04FF]/g) || []).length;
+  var minExpected = Math.max(80, numPages * 60);
+  return letters >= minExpected;
+}
+
+// ── Smart extract: pdf.js first, OCR if scanned ─────────────────────────────
+async function extractTextSmart(file, ocrLang, onPageProgress) {
+  addLog('Trying pdf.js text extraction…', 'info');
+  setProgress(3, 'Reading PDF…');
+  var pdf = await openPdf(file);
+  var textPdf = await extractTextPdfJs(pdf);
+
+  if (textLayerLooksValid(textPdf, pdf.numPages)) {
+    addLog('Text layer found — ' + textPdf.length.toLocaleString() + ' characters (no OCR needed)', 'ok');
+    filePillBadge.textContent = 'Text PDF';
+    filePillBadge.className = 'fp-badge text-pdf';
+    return { text: textPdf, method: 'text' };
+  }
+
+  addLog('Scanned or image PDF detected — starting OCR…', 'warn');
+  filePillBadge.textContent = 'Scanned';
+  filePillBadge.className = 'fp-badge scan-pdf';
+  ocrNote.classList.add('show');
+  var ocrText = await extractTextOCR(file, pdf, ocrLang, onPageProgress);
+  return { text: ocrText, method: 'ocr' };
 }
 
 // ── Extract text from scanned PDF via OCR ────────────────────────────────
-// Single worker reused across all pages — lang data fetched from CDN (cached after first use)
-async function extractTextOCR(file, ocrLang, onPageProgress) {
-  var buf      = await file.arrayBuffer();
-  var pdf      = await pdfjsLib.getDocument({ data: buf }).promise;
+async function extractTextOCR(file, pdf, ocrLang, onPageProgress) {
   var numPages = pdf.numPages;
   var allText  = [];
   var worker   = null;
@@ -481,8 +539,8 @@ async function extractTextOCR(file, ocrLang, onPageProgress) {
     setProgress(12, 'Loading OCR engine…');
 
     worker = await Tesseract.createWorker(ocrLang, 1, {
-      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-      corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-lstm.wasm.js',
+      workerPath: 'tesseract.worker.min.js',
+      corePath:   'tesseract-core-lstm.js',
       langPath:   'https://tessdata.projectnaptha.com/4.0.0_best',
       logger: function(m) {
         if (m.status === 'loading tesseract core') {
@@ -720,9 +778,8 @@ function translateToEnglish(text) {
 }
 
 function translate(text, tgtLang) {
-  if (tgtLang !== 'English')
-    return '[Note: Offline translation to English only. For ' + tgtLang + ', use an online service.]\n\n' + translateToEnglish(text);
-  return translateToEnglish(text);
+  if (tgtLang.indexOf('English') === 0) return translateToEnglish(text);
+  return '[Note: Offline translation supports English only.]\n\n' + translateToEnglish(text);
 }
 
 // ── Build a single-language PDF ───────────────────────────────────────────
@@ -859,75 +916,34 @@ function buildSinglePDF(text, lang, type) {
   return doc;
 }
 
-// ── Build bilingual PDF (both sections) ───────────────────────────────────
-function buildPDF(original, translated, srcLang, tgtLang, wasOCR) {
-  var doc = new window.jspdf.jsPDF({ unit:'mm', format:'a4' });
-  var W   = doc.internal.pageSize.getWidth();
-  var H   = doc.internal.pageSize.getHeight();
-  var ML  = 18, MR = 18, PW = W - ML - MR;
-  var y   = 18;
-
-  function newPage() { doc.addPage(); y = 18; }
-  function check(n)  { if (y + (n||7) > H - 14) newPage(); }
-
-  function banner(label, r, g, b) {
-    check(10);
-    doc.setFillColor(r,g,b); doc.rect(ML,y,PW,8,'F');
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
-    doc.text(label, ML+4, y+5.5);
-    y += 11; doc.setTextColor(30,30,30);
-  }
-
-  function writePara(text, size, style, indent, color) {
-    doc.setFont('helvetica', style||'normal'); doc.setFontSize(size||9);
-    doc.setTextColor((color||[35,35,35])[0],(color||[35,35,35])[1],(color||[35,35,35])[2]);
-    var lines = doc.splitTextToSize(text, PW-(indent||0));
-    for (var i=0;i<lines.length;i++){ check(5); doc.text(lines[i],ML+(indent||0),y); y+=5; }
-    y += 1.5;
-  }
-
-  function renderText(text) {
-    var paras = text.split(/\n+/);
-    for (var i=0;i<paras.length;i++) {
-      var t = paras[i].trim(); if (!t){y+=2;continue;}
-      var allCaps  = (t===t.toUpperCase()&&t.length>6&&/[A-Z]/.test(t));
-      var numbered = /^\d+[\.\)]\s/.test(t);
-      var lettered = /^[a-zA-Z][\.\)]\s/.test(t)&&t.length<200;
-      if      (allCaps)  writePara(t,8.5,'bold',  0,[20,20,20]);
-      else if (numbered) writePara(t,9,  'normal', 0,[25,25,25]);
-      else if (lettered) writePara(t,9,  'normal', 6,[40,40,40]);
-      else               writePara(t,9,  'normal', 0,[35,35,35]);
-    }
-  }
-
-  // Title
-  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(60,100,40);
-  doc.text('BILINGUAL PDF TRANSLATION', W/2, y, {align:'center'}); y+=6;
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(140,140,140);
-  var note = wasOCR ? ' (OCR)' : ' (text)';
-  doc.text(srcLang+note+' \u2192 '+tgtLang+'   \u00B7   '+new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}), W/2, y, {align:'center'});
-  y+=3; doc.setDrawColor(155,195,120); doc.setLineWidth(0.5); doc.line(ML,y+2,W-MR,y+2); y+=8;
-
-  banner('ORIGINAL \u2014 '+srcLang.toUpperCase(), 78,108,48);
-  renderText(original);
-  y+=4; doc.setDrawColor(195,212,178); doc.setLineWidth(0.4); doc.line(ML,y,W-MR,y); y+=6;
-  banner('TRANSLATION \u2014 '+tgtLang.toUpperCase(), 36,96,66);
-  renderText(translated);
-
-  var total = doc.internal.getNumberOfPages();
-  for (var p=1;p<=total;p++) {
-    doc.setPage(p); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(185,185,185);
-    doc.text(p+' / '+total, W-MR, H-7, {align:'right'});
-    doc.text('PDF Translator \u2014 offline'+(wasOCR?' (OCR)':''), ML, H-7);
-  }
-  return doc;
+function triggerDownload(blob, filename) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
 }
+
+ge('btnDlOrig').addEventListener('click', function() {
+  if (blobOrig && selectedFile) {
+    var base = selectedFile.name.replace(/\.pdf$/i, '');
+    triggerDownload(blobOrig, base + '_original_' + srcLangSel.value.split(' ')[0] + '.pdf');
+  }
+});
+ge('btnDlTrans').addEventListener('click', function() {
+  if (blobTrans && selectedFile) {
+    var base = selectedFile.name.replace(/\.pdf$/i, '');
+    triggerDownload(blobTrans, base + '_translated_' + ge('tgtLang').value.split(' ')[0] + '.pdf');
+  }
+});
 
 // ── Run ───────────────────────────────────────────────────────────────────
 btnRun.addEventListener('click', async function() {
-  outputBlob = null;
-  resultWrap.classList.remove('show');
-  logEl.innerHTML = '';
+  if (!selectedFile) return;
+  resetResults();
   progressWrap.classList.add('show');
   btnRun.disabled = true;
   setProgress(0, 'Starting…');
@@ -935,81 +951,57 @@ btnRun.addEventListener('click', async function() {
   var srcLang = srcLangSel.value;
   var tgtLang = ge('tgtLang').value;
   var ocrLang = srcLangSel.options[srcLangSel.selectedIndex].getAttribute('data-ocr') || 'ind';
-  var base    = selectedFile.name.replace(/\.pdf$/i,'');
-  var outName = base + '_bilingual_' + tgtLang.split(' ')[0] + '.pdf';
+  var srcShort = srcLang.split(' ')[0];
+  var tgtShort = tgtLang.split(' ')[0];
+
+  ge('dlOrigLabel').textContent = srcLang + ' (cleaned)';
+  ge('dlTransLabel').textContent = tgtLang;
+
   try {
-    var rawText = '';
+    var extracted;
+    var onOcrProgress = function(page, total) {
+      setProgress(28 + (page / total) * 42, 'OCR page ' + page + '/' + total + '…');
+    };
 
-    // Always use OCR — works for both scanned and text PDFs
-    addLog('Starting OCR (' + ocrLang + ')…', 'ocr');
-    setProgress(10, 'Loading OCR engine…');
     try {
-      rawText = await extractTextOCR(
-        selectedFile,
-        ocrLang,
-        function(page, total) { setProgress(30 + (page/total)*40, 'OCR page '+page+'/'+total+'…'); }
-      );
-      addLog('OCR complete — ' + rawText.length.toLocaleString() + ' characters', 'ok');
-    } catch(ocrErr) {
-      addLog('Retrying with "eng" fallback…', 'warn');
-      rawText = await extractTextOCR(
-        selectedFile,
-        'eng',
-        function(page, total) { setProgress(30+(page/total)*40, 'OCR fallback '+page+'/'+total); }
-      );
-      addLog('OCR fallback complete — ' + rawText.length.toLocaleString() + ' characters', 'ok');
+      extracted = await extractTextSmart(selectedFile, ocrLang, onOcrProgress);
+    } catch (err1) {
+      addLog('Primary extraction failed: ' + err1.message, 'warn');
+      addLog('Retrying OCR with English…', 'warn');
+      var pdf = await openPdf(selectedFile);
+      var text = await extractTextOCR(selectedFile, pdf, 'eng', onOcrProgress);
+      extracted = { text: text, method: 'ocr' };
     }
-    setProgress(72, 'Translating…');
 
-    addLog('Cleaning and translating…', 'info');
-    // Original: just clean OCR noise — NO translation applied
+    var rawText = extracted.text;
+    var usedOcr = extracted.method === 'ocr';
+    setProgress(72, 'Cleaning & translating…');
+    addLog('Cleaning text (' + (usedOcr ? 'OCR' : 'text layer') + ')…', 'info');
+
     var cleanedOriginal = cleanOriginal(rawText);
-    // Translation: run the full translation engine on the cleaned text
     var translated = translate(cleanedOriginal, tgtLang);
     addLog('Translation complete', 'ok');
-    setProgress(85, 'Building PDF…');
+    setProgress(85, 'Building PDFs…');
 
-    addLog('Assembling PDFs…', 'info');
-
-    // Build original-only PDF
-    var docOrig  = buildSinglePDF(cleanedOriginal, srcLang, 'original');
-    var blobOrig = docOrig.output('blob');
-
-    // Build translation-only PDF
-    var docTrans  = buildSinglePDF(translated, tgtLang, 'translation');
-    var blobTrans = docTrans.output('blob');
-
-    var base      = selectedFile.name.replace(/\.pdf$/i,'');
-    var nameOrig  = base + '_original_' + srcLang.split(' ')[0] + '.pdf';
-    var nameTrans = base + '_translated_' + tgtLang.split(' ')[0] + '.pdf';
+    var docOrig = buildSinglePDF(cleanedOriginal, srcLang, 'original');
+    var docTrans = buildSinglePDF(translated, tgtLang, 'translation');
+    blobOrig = docOrig.output('blob');
+    blobTrans = docTrans.output('blob');
 
     addLog('Both PDFs ready!', 'ok');
     setProgress(100, 'Done ✓');
 
-    resSub.textContent = base;
+    resSub.textContent = selectedFile.name.replace(/\.pdf$/i, '') + (usedOcr ? ' · OCR' : ' · text');
     resultWrap.classList.add('show');
-    ge('dlRow').style.display = 'grid';
-    ge('dlTransLabel').textContent = tgtLang;
+    dlRow.classList.add('show');
+    addLog('Use the buttons below to download.', 'warn');
 
-    function triggerDownload(blob, filename) {
-      var url = URL.createObjectURL(blob);
-      var a   = document.createElement('a');
-      a.href  = url; a.download = filename;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
-    }
-
-    ge('btnDlOrig').onclick  = function() { triggerDownload(blobOrig,  nameOrig);  };
-    ge('btnDlTrans').onclick = function() { triggerDownload(blobTrans, nameTrans); };
-
-    addLog('Click a button to download!', 'warn');
-
-  } catch(err) {
+  } catch (err) {
     addLog('ERROR: ' + err.message, 'err');
     setProgress(0, 'Failed — see log');
     console.error(err);
   } finally {
-    btnRun.disabled = false;
+    btnRun.disabled = !selectedFile;
   }
 });
 </script>
