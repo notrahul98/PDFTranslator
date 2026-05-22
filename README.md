@@ -1,6 +1,8 @@
-# PDF Translator
+# PDF Translator v2.2
 
 Browser-based tool for Indonesian government tax letters (PDF). Produces two downloadable PDFs: a cleaned original and an English translation.
+
+**v2.2 fixes:** critical newline bug in cleaning, Force OCR default for scanned letters, document-level translation (not line-by-line), simpler PDF layout.
 
 ## Features
 
