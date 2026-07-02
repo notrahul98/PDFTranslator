@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- PDF TRANSLATOR v2.1 — Indonesian tax letters → two PDFs -->
+<!-- PDF TRANSLATOR v3.0 — layout-preserving translation, parallel cached OCR -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PDF Translator v2.3 — Offline</title>
+<title>PDF Translator v3.0</title>
 <script src="pdf.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
@@ -265,7 +265,7 @@ footer a:hover { color:var(--accent); }
 
   <!-- OCR setup notice -->
   <div class="info-box">
-    <strong>📋 How extraction works:</strong> Text-based PDFs use pdf.js. Scanned PDFs use OCR (~15 MB first download). You must upload <code>tesseract.worker.min.js</code> next to <code>index.html</code> on GitHub Pages. Keep this tab open until the log shows “OCR ready”.
+    <strong>📋 How it works:</strong> Text PDFs are read instantly with pdf.js. Scanned PDFs use OCR — the fast language pack (~2 MB) downloads once and is cached in your browser, so only the first run waits. The translation is drawn onto the original page image line-by-line, so the output keeps the exact layout of your document.
   </div>
 
   <!-- Step 1 -->
@@ -284,6 +284,7 @@ footer a:hover { color:var(--accent); }
       <span class="fp-badge" id="filePillBadge"></span>
       <button class="fp-remove" id="btnRemove" type="button" aria-label="Remove file">✕</button>
     </div>
+  </div>
 
   <!-- Step 2 -->
   <div class="card">
@@ -292,32 +293,36 @@ footer a:hover { color:var(--accent); }
       <div class="field">
         <label>From</label>
         <select id="srcLang">
-          <option value="Indonesian (Bahasa Indonesia)" data-ocr="ind" selected>Indonesian (Bahasa)</option>
-          <option value="Malay" data-ocr="msa">Malay</option>
-          <option value="English" data-ocr="eng">English</option>
+          <option value="Indonesian (Bahasa Indonesia)" data-ocr="ind" data-code="id" selected>Indonesian (Bahasa)</option>
+          <option value="Malay" data-ocr="msa" data-code="ms">Malay</option>
+          <option value="English" data-ocr="eng" data-code="en">English</option>
         </select>
       </div>
       <div class="lang-arrow">→</div>
       <div class="field">
         <label>To</label>
         <select id="tgtLang">
-          <option value="English" selected>English (offline dictionary)</option>
-          <option value="Mandarin Chinese" disabled>Mandarin Chinese (online only)</option>
-          <option value="Arabic" disabled>Arabic (online only)</option>
-          <option value="Spanish" disabled>Spanish (online only)</option>
-          <option value="French" disabled>French (online only)</option>
-          <option value="German" disabled>German (online only)</option>
-          <option value="Japanese" disabled>Japanese (online only)</option>
-          <option value="Korean" disabled>Korean (online only)</option>
+          <option value="English" data-code="en" selected>English</option>
+          <option value="Spanish" data-code="es" class="online-only">Spanish (online)</option>
+          <option value="French" data-code="fr" class="online-only">French (online)</option>
+          <option value="German" data-code="de" class="online-only">German (online)</option>
+          <option value="Mandarin Chinese" disabled>Mandarin Chinese (font not supported yet)</option>
+          <option value="Arabic" disabled>Arabic (font not supported yet)</option>
+          <option value="Japanese" disabled>Japanese (font not supported yet)</option>
+          <option value="Korean" disabled>Korean (font not supported yet)</option>
         </select>
       </div>
     </div>
     <label class="ocr-force" style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12.5px;color:var(--text2);cursor:pointer;">
-      <input type="checkbox" id="forceOcr" checked style="width:16px;height:16px;accent-color:var(--accent);">
-      <span><strong>Force OCR</strong> — recommended for scanned Indonesian tax letters (best translation quality)</span>
+      <input type="checkbox" id="forceOcr" style="width:16px;height:16px;accent-color:var(--accent);">
+      <span><strong>Force OCR</strong> — only needed if a text PDF extracts badly. Scanned PDFs use OCR automatically.</span>
+    </label>
+    <label class="ocr-force" style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--text2);cursor:pointer;">
+      <input type="checkbox" id="onlineTrans" checked style="width:16px;height:16px;accent-color:var(--accent);">
+      <span><strong>Online translation</strong> — much better quality (free, no key). Uncheck to use the built-in offline dictionary.</span>
     </label>
     <div class="ocr-note" id="ocrNote">
-      ⚠️ <strong>Scanned PDFs:</strong> OCR language data (~10 MB) downloads once on first use, then is cached. Uncheck Force OCR only for digital/text PDFs.
+      ⚠️ <strong>First OCR run:</strong> the fast language pack (~2 MB) downloads once, then is cached in your browser — later runs start instantly. Multiple pages are read in parallel.
     </div>
   </div>
 
@@ -359,25 +364,31 @@ footer a:hover { color:var(--accent); }
   <div class="card">
     <div class="card-label">How it works</div>
     <div class="steps">
-      <div class="step"><div class="step-num">1</div><div class="step-txt">pdf.js tries to extract real text; if the PDF is scanned, Tesseract.js runs OCR on each page image</div></div>
-      <div class="step"><div class="step-num">2</div><div class="step-txt">Built-in dictionary maps Indonesian tax &amp; legal terms to English</div></div>
-      <div class="step"><div class="step-num">3</div><div class="step-txt">jsPDF builds two separate PDFs — cleaned original and English translation — saved to your device</div></div>
+      <div class="step"><div class="step-num">1</div><div class="step-txt">Each page is read line-by-line with its exact position — pdf.js for text PDFs, parallel Tesseract OCR workers for scans</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-txt">Lines are translated (free online service, or the built-in tax-term dictionary when offline)</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-txt">The translation is drawn onto the original page image in place, so the output keeps your document's layout — plus your untouched original</div></div>
     </div>
   </div>
 
 </div>
 
 <footer>
-  Runs entirely in your browser · No data leaves your device · No API key needed<br>
+  Runs in your browser · No API key needed · Online translation is optional<br>
   pdf.js by Mozilla · Tesseract.js for OCR · jsPDF by Parallax
 </footer>
 
 <script>
+// ═══════════════════════════════════════════════════════════════════════════
+// PDF TRANSLATOR v3.0 ENGINE
+// Layout-preserving translation: OCR/text-extract each line WITH its position,
+// translate it, and draw it back onto the original page image in place.
+// Speed: fast (integer) language models, browser caching, persistent workers,
+// parallel OCR, contrast-preprocessed renders.
+// ═══════════════════════════════════════════════════════════════════════════
+
 // ── pdf.js worker ─────────────────────────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
-// Tesseract v5 — worker MUST be same-origin on GitHub Pages (cross-origin Worker is blocked).
-// Core + language packs can load from CDN inside the worker.
 function getAppBase() {
   var path = window.location.pathname.replace(/[^/]*$/, '');
   return window.location.origin + path;
@@ -385,8 +396,11 @@ function getAppBase() {
 var TESS = {
   worker: getAppBase() + 'tesseract.worker.min.js',
   core:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/',
-  lang:   'https://tessdata.projectnaptha.com/4.0.0_best'
+  // 4.0.0 = the FAST integer models (~2 MB for Indonesian) — 5-10x faster
+  // than 4.0.0_best with near-identical accuracy on printed documents.
+  lang:   'https://tessdata.projectnaptha.com/4.0.0'
 };
+var PT2MM = 25.4 / 72;
 
 function withTimeout(promise, ms, message) {
   return Promise.race([
@@ -400,50 +414,78 @@ function withTimeout(promise, ms, message) {
 function tessLogger(m) {
   if (m.status === 'loading tesseract core') {
     setProgress(14, 'Loading OCR core…');
-    addLog('Loading WASM core…', 'ocr');
   } else if (m.status === 'loading language traineddata') {
     var pct = m.progress ? Math.round(m.progress * 100) : 0;
-    setProgress(18 + pct * 0.12, 'Downloading language… ' + pct + '%');
-    addLog('Language pack: ' + pct + '%', 'ocr');
-  } else if (m.status === 'initializing api') {
-    setProgress(32, 'Initialising OCR…');
+    setProgress(16 + pct * 0.1, 'Language pack… ' + pct + '%');
   } else if (m.status === 'initialized tesseract') {
-    addLog('OCR ready', 'ok');
+    addLog('OCR worker ready', 'ok');
   }
 }
 
-async function createTessWorker(ocrLang) {
+async function createTessWorker(ocrLang, quiet) {
   var base = {
     corePath: TESS.core,
     langPath: TESS.lang,
     gzip: true,
-    cacheMethod: 'none',
-    logger: tessLogger
+    // NOTE: no cacheMethod:'none' — the language pack is cached in
+    // IndexedDB after the first run, so it never re-downloads.
+    logger: quiet ? undefined : tessLogger
   };
+  var w;
   try {
-    addLog('Worker: same-origin (' + TESS.worker + ')', 'info');
-    return await Tesseract.createWorker(ocrLang, 1, Object.assign({
+    w = await Tesseract.createWorker(ocrLang, 1, Object.assign({
       workerPath: TESS.worker,
       workerBlobURL: false
     }, base));
   } catch (errLocal) {
-    addLog('Local worker failed: ' + errLocal.message, 'warn');
-    addLog('Fallback: CDN worker via blob URL…', 'warn');
-    return await Tesseract.createWorker(ocrLang, 1, Object.assign({
+    addLog('Local worker failed (' + errLocal.message + ') — using CDN worker', 'warn');
+    w = await Tesseract.createWorker(ocrLang, 1, Object.assign({
       workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
       workerBlobURL: true
     }, base));
   }
+  // PSM 3 (auto, no orientation detection) — much faster than PSM 1 and
+  // right for upright letters/documents.
+  try { await w.setParameters({ tessedit_pageseg_mode: '3' }); } catch (e) {}
+  return w;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ── Persistent OCR scheduler (reused across runs = no re-init cost) ───────
+var gScheduler = null, gSchedLang = null;
+
+async function getScheduler(ocrLang, numPages) {
+  if (gScheduler && gSchedLang === ocrLang) {
+    addLog('Reusing warm OCR workers', 'ok');
+    return gScheduler;
+  }
+  if (gScheduler) { try { await gScheduler.terminate(); } catch (e) {} gScheduler = null; }
+  var want = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 4) - 1, numPages));
+  addLog('Starting ' + want + ' OCR worker(s) [' + ocrLang + ', fast model]…', 'ocr');
+  setProgress(12, 'Loading OCR engine…');
+  var sched = Tesseract.createScheduler();
+  // First worker downloads (or reads cached) language data…
+  var first = await withTimeout(createTessWorker(ocrLang, false), 120000,
+    'OCR engine timed out after 2 minutes. Check your connection and try again.');
+  sched.addWorker(first);
+  // …the rest hit the cache, so start them in parallel.
+  if (want > 1) {
+    var rest = await Promise.all(
+      Array.apply(null, Array(want - 1)).map(function() { return createTessWorker(ocrLang, true); })
+    );
+    for (var i = 0; i < rest.length; i++) sched.addWorker(rest[i]);
+  }
+  gScheduler = sched;
+  gSchedLang = ocrLang;
+  return sched;
+}
+
+// ── Helpers / DOM ──────────────────────────────────────────────────────────
 function ge(id) { return document.getElementById(id); }
 
 var selectedFile = null;
 var blobOrig = null;
 var blobTrans = null;
 
-// ── DOM refs ──────────────────────────────────────────────────────────────
 var fileInput     = ge('fileInput');
 var uploadArea    = ge('uploadArea');
 var filePill      = ge('filePill');
@@ -460,8 +502,22 @@ var resultWrap    = ge('resultWrap');
 var resSub        = ge('resSub');
 var dlRow         = ge('dlRow');
 var srcLangSel    = ge('srcLang');
+var tgtLangSel    = ge('tgtLang');
 var ocrNote       = ge('ocrNote');
+var onlineChk     = ge('onlineTrans');
 
+function addLog(msg, cls) {
+  var s = document.createElement('span');
+  s.className = cls || '';
+  s.textContent = '› ' + msg;
+  logEl.appendChild(s);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function setProgress(pct, label) {
+  progFill.style.width = pct + '%';
+  progPct.textContent = Math.round(pct) + '%';
+  if (label) progLabel.textContent = label;
+}
 function resetResults() {
   resultWrap.classList.remove('show');
   dlRow.classList.remove('show');
@@ -478,22 +534,19 @@ function acceptFile(file) {
   if (!/\.pdf$/i.test(file.name)) { alert('Please choose a PDF file.'); return; }
   if (file.size > 20 * 1024 * 1024) { alert('File is too large. Max 20 MB.'); return; }
   selectedFile = file;
-  filePillName.textContent  = file.name;
+  filePillName.textContent = file.name;
   filePillBadge.textContent = '✓ Ready';
-  filePillBadge.className   = 'fp-badge text-pdf';
+  filePillBadge.className = 'fp-badge text-pdf';
   filePill.classList.add('show');
   uploadArea.classList.add('has-file');
   btnRun.disabled = false;
   resetResults();
 }
-
 fileInput.addEventListener('change', function() {
   if (fileInput.files && fileInput.files[0]) acceptFile(fileInput.files[0]);
 });
-
 btnRemove.addEventListener('click', function(e) {
-  e.preventDefault();
-  e.stopPropagation();
+  e.preventDefault(); e.stopPropagation();
   selectedFile = null;
   filePill.classList.remove('show');
   uploadArea.classList.remove('has-file');
@@ -501,526 +554,403 @@ btnRemove.addEventListener('click', function(e) {
   btnRun.disabled = true;
   resetResults();
 });
-
 filePill.addEventListener('click', function(e) { e.stopPropagation(); });
-
-uploadArea.addEventListener('dragover', function(e) {
-  e.preventDefault();
-  uploadArea.classList.add('drag-over');
-});
-uploadArea.addEventListener('dragleave', function(e) {
-  if (!uploadArea.contains(e.relatedTarget)) uploadArea.classList.remove('drag-over');
-});
+uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+uploadArea.addEventListener('dragleave', function(e) { if (!uploadArea.contains(e.relatedTarget)) uploadArea.classList.remove('drag-over'); });
 uploadArea.addEventListener('drop', function(e) {
-  e.preventDefault();
-  uploadArea.classList.remove('drag-over');
+  e.preventDefault(); uploadArea.classList.remove('drag-over');
   var f = e.dataTransfer.files && e.dataTransfer.files[0];
   if (f) acceptFile(f);
 });
+srcLangSel.addEventListener('change', function() { ocrNote.classList.add('show'); });
 
-srcLangSel.addEventListener('change', function() {
-  ocrNote.classList.add('show');
-});
-
-// ── Logging ───────────────────────────────────────────────────────────────
-function addLog(msg, cls) {
-  var s = document.createElement('span');
-  s.className   = cls || '';
-  s.textContent = '› ' + msg;
-  logEl.appendChild(s);
-  logEl.scrollTop = logEl.scrollHeight;
+// Online toggle: gate the online-only target languages
+function syncTargetOptions() {
+  var online = onlineChk.checked;
+  for (var i = 0; i < tgtLangSel.options.length; i++) {
+    var o = tgtLangSel.options[i];
+    if (o.className === 'online-only') {
+      o.disabled = !online;
+      if (!online && o.selected) tgtLangSel.value = 'English';
+    }
+  }
 }
+onlineChk.addEventListener('change', syncTargetOptions);
+syncTargetOptions();
 
-function setProgress(pct, label) {
-  progFill.style.width = pct + '%';
-  progPct.textContent  = Math.round(pct) + '%';
-  if (label) progLabel.textContent = label;
-}
-
-// ── Open PDF document (reuse buffer) ──────────────────────────────────────
-async function openPdf(file) {
-  var buf = await file.arrayBuffer();
-  return pdfjsLib.getDocument({ data: buf }).promise;
-}
-
-// ── Extract embedded text with pdf.js ─────────────────────────────────────
-async function extractTextPdfJs(pdf) {
-  var parts = [];
+// ── Render all pages once (shared by OCR and output PDFs) ─────────────────
+// Target ≈ 2200 px on the long edge (~190 DPI for A4): plenty for OCR,
+// far fewer pixels than the old fixed scale-3 render.
+async function renderPages(pdf, preprocessForOcr) {
+  var pages = [];
   for (var i = 1; i <= pdf.numPages; i++) {
     var page = await pdf.getPage(i);
-    var content = await page.getTextContent();
-    var rows = [];
-    var rowTol = 4;
-    for (var j = 0; j < content.items.length; j++) {
-      var item = content.items[j];
-      if (!item.str || !item.str.trim()) continue;
-      var y = Math.round(item.transform[5]);
-      var placed = false;
-      for (var r = 0; r < rows.length; r++) {
-        if (Math.abs(rows[r].y - y) <= rowTol) {
-          rows[r].items.push({ x: item.transform[4], str: item.str });
-          placed = true;
-          break;
-        }
+    var vp1 = page.getViewport({ scale: 1 });
+    var scale = Math.max(1.4, Math.min(3, 2200 / Math.max(vp1.width, vp1.height)));
+    var vp = page.getViewport({ scale: scale });
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.floor(vp.width);
+    canvas.height = Math.floor(vp.height);
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    if (preprocessForOcr) enhanceContrast(canvas, ctx);
+    pages.push({
+      pageObj: page,
+      viewport: vp,
+      scale: scale,
+      wPx: canvas.width,
+      hPx: canvas.height,
+      dataUrl: canvas.toDataURL('image/jpeg', 0.85),
+      lines: []
+    });
+    canvas.width = canvas.height = 0; // free memory
+    setProgress(5 + (i / pdf.numPages) * 20, 'Rendering page ' + i + '/' + pdf.numPages + '…');
+  }
+  return pages;
+}
+
+// Grayscale + contrast stretch: cheap preprocessing that noticeably
+// improves Tesseract accuracy on dim or yellowed scans.
+function enhanceContrast(canvas, ctx) {
+  var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  var d = img.data, n = d.length;
+  var hist = new Uint32Array(256), i, g;
+  for (i = 0; i < n; i += 4) {
+    g = (d[i] * 77 + d[i + 1] * 151 + d[i + 2] * 28) >> 8;
+    d[i] = g; // stash luma in R
+    hist[g]++;
+  }
+  var total = n / 4, lo = 0, hi = 255, acc = 0, cut = total * 0.02;
+  for (i = 0; i < 256; i++) { acc += hist[i]; if (acc > cut) { lo = i; break; } }
+  acc = 0;
+  for (i = 255; i >= 0; i--) { acc += hist[i]; if (acc > cut) { hi = i; break; } }
+  var range = Math.max(1, hi - lo);
+  for (i = 0; i < n; i += 4) {
+    g = ((d[i] - lo) * 255 / range) | 0;
+    if (g < 0) g = 0; else if (g > 255) g = 255;
+    d[i] = d[i + 1] = d[i + 2] = g;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// ── Text-layer extraction WITH positions (for digital PDFs) ──────────────
+async function extractLinesTextLayer(pg) {
+  var content = await pg.pageObj.getTextContent();
+  var items = [], j;
+  for (j = 0; j < content.items.length; j++) {
+    var it = content.items[j];
+    if (!it.str || !it.str.trim()) continue;
+    var tx = pdfjsLib.Util.transform(pg.viewport.transform, it.transform);
+    var fh = Math.hypot(tx[2], tx[3]) || 10;
+    items.push({
+      x0: tx[4],
+      y1: tx[5],           // baseline (canvas px, y down)
+      y0: tx[5] - fh,
+      x1: tx[4] + (it.width * pg.scale),
+      str: it.str
+    });
+  }
+  // group by baseline
+  var rows = [];
+  for (j = 0; j < items.length; j++) {
+    var m = items[j], placed = false;
+    for (var r = 0; r < rows.length; r++) {
+      if (Math.abs(rows[r].y1 - m.y1) <= Math.max(3, (m.y1 - m.y0) * 0.4)) {
+        rows[r].items.push(m); placed = true; break;
       }
-      if (!placed) rows.push({ y: y, items: [{ x: item.transform[4], str: item.str }] });
     }
-    rows.sort(function(a, b) { return b.y - a.y; });
-    var pageLines = [];
-    for (var ri = 0; ri < rows.length; ri++) {
-      rows[ri].items.sort(function(a, b) { return a.x - b.x; });
-      pageLines.push(rows[ri].items.map(function(it) { return it.str; }).join(' ').replace(/\s+/g, ' ').trim());
+    if (!placed) rows.push({ y1: m.y1, items: [m] });
+  }
+  rows.sort(function(a, b) { return a.y1 - b.y1; });
+  var lines = [];
+  for (var ri = 0; ri < rows.length; ri++) {
+    var row = rows[ri];
+    row.items.sort(function(a, b) { return a.x0 - b.x0; });
+    var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, parts = [];
+    for (j = 0; j < row.items.length; j++) {
+      var q = row.items[j];
+      x0 = Math.min(x0, q.x0); x1 = Math.max(x1, q.x1);
+      y0 = Math.min(y0, q.y0); y1 = Math.max(y1, q.y1);
+      parts.push(q.str);
     }
-    parts.push(pageLines.filter(Boolean).join('\n'));
-    setProgress(5 + (i / pdf.numPages) * 20, 'Reading page ' + i + '/' + pdf.numPages + '…');
+    var text = parts.join(' ').replace(/\s+/g, ' ').trim();
+    if (text) lines.push({ x0: x0, y0: y0, x1: x1, y1: y1, text: text });
   }
-  return parts.join('\n\n');
+  return lines;
 }
 
-function textLayerIsUsable(text, numPages) {
-  var letters = (text.match(/[a-zA-Z\u00C0-\u024F\u0400-\u04FF]/g) || []).length;
-  if (letters < Math.max(80, numPages * 60)) return false;
-  var lower = text.toLowerCase();
-  var markers = ['pajak', 'direktorat', 'wajib', 'permintaan', 'penjelasan', 'nomor', 'saudara', 'berdasarkan'];
-  var hits = 0;
-  for (var m = 0; m < markers.length; m++) {
-    if (lower.indexOf(markers[m]) !== -1) hits++;
+function textLayerIsUsable(pages) {
+  var chars = 0, lineCount = 0;
+  for (var i = 0; i < pages.length; i++) {
+    lineCount += pages[i].lines.length;
+    for (var j = 0; j < pages[i].lines.length; j++) chars += pages[i].lines[j].text.length;
   }
-  if (hits < 3) return false;
-  var lines = text.split('\n').filter(function(l) { return l.trim().length > 8; });
-  if (lines.length < numPages * 2) return false;
-  return true;
+  return chars >= Math.max(60, pages.length * 40) && lineCount >= pages.length * 2;
 }
 
-// ── Smart extract: pdf.js first, OCR if scanned ─────────────────────────────
-async function extractTextSmart(file, ocrLang, onPageProgress) {
-  setProgress(3, 'Reading PDF…');
-  var pdf = await openPdf(file);
-  var forceOcr = ge('forceOcr') && ge('forceOcr').checked;
-
-  if (!forceOcr) {
-    addLog('Trying pdf.js text extraction…', 'info');
-    var textPdf = await extractTextPdfJs(pdf);
-  if (textLayerIsUsable(textPdf, pdf.numPages)) {
-    addLog('Readable text layer — ' + textPdf.length.toLocaleString() + ' characters', 'ok');
-    filePillBadge.textContent = 'Text PDF';
-    filePillBadge.className = 'fp-badge text-pdf';
-    return { text: textPdf, method: 'text' };
-  }
-    addLog('No usable text layer — starting OCR…', 'warn');
-  } else {
-    addLog('Force OCR enabled — reading pages with Tesseract…', 'ocr');
-  }
-
-  if (forceOcr) {
-    addLog('OCR mode (scanned letter)…', 'ocr');
-  }
-  filePillBadge.textContent = 'Scanned';
-  filePillBadge.className = 'fp-badge scan-pdf';
-  ocrNote.classList.add('show');
-  var ocrText = await extractTextOCR(file, pdf, ocrLang, onPageProgress);
-  return { text: ocrText, method: 'ocr' };
-}
-
-// ── Extract text from scanned PDF via OCR ────────────────────────────────
-async function extractTextOCR(file, pdf, ocrLang, onPageProgress) {
-  var numPages = pdf.numPages;
-  var allText  = [];
-  var worker   = null;
-
-  try {
-    addLog('Creating OCR worker (' + ocrLang + ')…', 'ocr');
-    setProgress(12, 'Loading OCR engine…');
-
-    addLog('Downloading OCR engine (first time may take 1–2 min)…', 'ocr');
-    worker = await withTimeout(
-      createTessWorker(ocrLang),
-      180000,
-      'OCR engine timed out after 3 minutes. Check your internet connection, refresh the page, and try again.'
-    );
-
-    addLog('OCR engine ready — processing ' + numPages + ' page(s)…', 'ok');
-
-    for (var i = 1; i <= numPages; i++) {
-      onPageProgress(i, numPages);
-      addLog('OCR page ' + i + ' of ' + numPages + '…', 'ocr');
-
-      var page   = await pdf.getPage(i);
-      var vp     = page.getViewport({ scale: 3 });
-      var canvas = document.createElement('canvas');
-      canvas.width  = Math.floor(vp.width);
-      canvas.height = Math.floor(vp.height);
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-
-      var result   = await worker.recognize(canvas, {}, { tessedit_pageseg_mode: '1' });
-      var pageText = result.data.text.trim();
-      allText.push(pageText);
-
-      setProgress(30 + (i / numPages) * 55, 'Page ' + i + '/' + numPages + ' done');
-      addLog('Page ' + i + ' done — ' + pageText.length + ' chars extracted', 'ok');
-    }
-
-  } finally {
-    if (worker) { try { await worker.terminate(); } catch(e) {} }
-  }
-
-  return allText.join('\n\n');
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// TRANSLATION ENGINE
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ── Known clean translations for this letter type ───────────────────────
-// Keyed exactly as they appear after OCR + line-joining
-var KNOWN = [
-  // Full paragraphs matched by unique anchor phrase
-  ["Kami mengucapkan terima kasih",
-   "We extend our gratitude and appreciation for your participation and commitment in fulfilling your/your company's tax obligations thus far. The taxes you pay are the primary source of funding for Indonesia's State Revenue and Expenditure Budget (APBN)."],
-  ["Menindaklanjuti data pada administrasi Direktorat Jenderal Pajak",
-   "Following up on the data in the administration of the Directorate General of Taxes, we hereby convey the following matters."],
-  ["Berdasarkan penelitian terhadap data",
-   "1. Based on an examination of the data and/or information we have and/or obtained for the 2023 tax year, it is known that:"],
-  ["Equalisasi biaya gaji yang perlu dikonfirmasi",
-   "   a. There is a Salary Expense Equalization that needs to be confirmed"],
-  ["Equalisasi Biaya Jasa Konstruksi yang perlu dikonfirmasi",
-   "   c. There is a Construction Service Expense Equalization that needs to be confirmed"],
-  ["Equalisasi biaya jasa yang perlu dikonfirmasi",
-   "   b. There is a Service Fee Equalization that needs to be confirmed"],
-  ["rincian persediaan",
-   "   d. The Taxpayer is requested to provide an inventory breakdown and explanation of the warehouse used (no fixed assets/warehouse rental expenses recorded)"],
-  ["uang muka pembelian 6M",
-   "   e. The Taxpayer is requested to explain the purchase advance of IDR 6M in 2022 that is no longer recorded in 2023"],
-  ["pengurangan aktiva tetap di neraca",
-   "   f. There is a reduction in fixed assets on the balance sheet, indicating a possible sale of other fixed assets"],
-  ["pengurangan hutang pajak 850 juta",
-   "   g. The Taxpayer is requested to provide an explanation regarding the reduction of tax payable by IDR 850 million"],
-  ["utang ke non bank",
-   "   h. Regarding non-bank debt, an explanation of the related interest expense is requested"],
-  ["keterangan lain yang perlu dikonfirmasi",
-   "   i. There is other data/information that needs to be confirmed"],
-  ["Memperhatikan hal di atas",
-   "2. In view of the above, we request that you or a duly authorized representative, in accordance with the regulations on the exercise of rights and fulfillment of obligations of a tax representative, provide us with an explanation within 14 (fourteen) calendar days from the date of this letter, the date of dispatch, or the date this letter is delivered in person."],
-  ["Penjelasan atas data dan/atau keterangan di atas dapat dilakukan",
-   "3. Explanations may be submitted through written explanation, in-person meeting, or a face-to-face meeting via audiovisual media."],
-  ["Penjelasan secara tertulis dapat berupa surat",
-   "4. A written explanation may be a letter addressed to the Head of the Tax Service Office (KPP), submitted directly to the KPP, sent via facsimile, or via postal/courier service with proof of delivery."],
-  ["Dalam hal Saudara hendak menyampaikan penjelasan",
-   "5. Should you wish to provide an explanation, raise questions, or require further information, you may contact the Account Representative and/or accompanying official as follows."],
-  ["Apabila dalam pelaksanaan tugas ini terdapat pegawai",
-   "6. Should any employee of the Directorate General of Taxes request and/or receive goods/money/facilities from the taxpayer, please report via Tax Hotline 1500200, phone (021) 52970777, email pengaduan@pajak.go.id, or website https://pengaduan.pajak.go.id or https://wise.kemenkeu.go.id."],
-  ["Kepedulian dan peran aktif Saudara",
-   "Your concern and active role in fulfilling your tax obligations are greatly appreciated."],
-  ["Atas perhatian dan kerja sama Saudara",
-   "We thank you for your attention and cooperation."],
-  ["Dokumen ini dikeluarkan secara elektronik",
-   "This document was issued electronically and does not require a wet signature or official stamp. This document can be validated by scanning the QR Code using the M-Pajak mobile application."],
-  ["Validasi terhadap dokumen ini",
-   "This document can be validated by scanning the QR Code using the M-Pajak mobile application."],
-  ["Ditandatangani secara elektronik",
-   "Signed electronically"],
-  ["Kepala Kantor",
-   "Head of Office,"],
-  ["Kepala Seksi Pengawasan VI",
-   "Head of Supervision Section VI"],
-  ["Pejabat pendamping",
-   "Accompanying Official"],
-];
-
-// ── Word/phrase substitutions (line-level) ───────────────────────────────
-var PHRASES = [
-  ["KEMENTERIAN KEUANGAN REPUBLIK INDONESIA", "MINISTRY OF FINANCE OF THE REPUBLIC OF INDONESIA"],
-  ["DIREKTORAT JENDERAL PAJAK",               "DIRECTORATE GENERAL OF TAXES"],
-  ["KANWIL DJP JAKARTA UTARA",                "REGIONAL OFFICE OF DJP NORTH JAKARTA"],
-  ["KANTOR PELAYANAN PAJAK PRATAMA JAKARTA",  "PRIMARY TAX SERVICE OFFICE JAKARTA"],
-  ["KELAPA GADING",                           "KELAPA GADING"],
-  ["LAYANAN INFORMASI DAN KELUHAN KRING PAJAK", "INFORMATION AND COMPLAINT SERVICE — TAX HOTLINE"],
-  ["Permintaan Penjelasan atas Data dan/atau Keterangan", "Request for Explanation of Data and/or Information"],
-  ["Permintaan Penjelasan atas Data",          "Request for Explanation of Data and/or Information"],
-  ["Yth. Pimpinan",     "To the Director of"],
-  ["Yth.",              "To"],
-  ["Gedung",            "Building"],
-  ["Lantai I",          "Ground Floor"],
-  ["Lantai",            "Floor"],
-  ["Kota Administrasi Jakarta Utara", "North Jakarta Administrative City"],
-  ["Daerah Khusus Ibukota Jakarta",   "Special Capital Region of Jakarta"],
-  ["Nomor :", "Number :"], ["Nomor:", "Number:"],
-  ["Sifat :", "Nature :"], ["Sifat:", "Nature:"],
-  ["Rahasia", "Confidential"],
-  ["Lampiran :", "Attachment :"], ["Lampiran:", "Attachment:"],
-  ["Satu set", "One set"],
-  ["Hal :", "Subject :"], ["Hal:", "Subject:"],
-  ["dan/atau", "and/or"],
-  ["faksimile", "facsimile"],
-  ["surel", "email"],
-  ["laman", "website"],
-  ["telepon", "phone"],
-  ["Wajib Pajak", "Taxpayer"],
-  ["wajib pajak", "taxpayer"],
-  ["informasi kontak", "Contact information"],
-  ["nama :", "Name :"], ["nama:", "Name:"],
-  ["jabatan :", "Position :"], ["jabatan:", "Position:"],
-  ["Republik Indonesia", "Republic of Indonesia"],
-  ["Kepala", "Head of"],
-  ["Seksi Pengawasan", "Supervision Section"],
-  ["Pejabat", "Official"],
-  ["pendamping", "accompanying"],
-  ["penjelasan", "explanation"],
-  ["keterangan", "information"],
-  ["administrasi", "administration"],
-  ["pelaksanaan", "implementation"],
-  ["tugas", "duty"],
-  ["pegawai", "employee"],
-  ["terima kasih", "thank you"],
-  ["kerja sama", "cooperation"],
-  ["perhatian", "attention"],
-  ["dikeluarkan", "issued"],
-  ["secara elektronik", "electronically"],
-  ["Validasi", "Validation"],
-  ["dapat dilakukan", "may be carried out"],
-  ["secara tertulis", "in writing"],
-  ["dalam hal", "in the event that"],
-  ["apabila", "if"],
-  ["memperhatikan", "in view of"],
-  ["berdasarkan", "based on"],
-  ["penelitian", "examination"],
-  ["terhadap", "regarding"],
-  ["dikonfirmasi", "to be confirmed"],
-  ["Equalisasi", "Equalization"],
-  ["biaya", "expense"],
-  ["gaji", "salary"],
-  ["jasa", "service"],
-  ["konstruksi", "construction"],
-  ["persediaan", "inventory"],
-  ["neraca", "balance sheet"],
-  ["aktiva tetap", "fixed assets"],
-  ["hutang pajak", "tax payable"],
-  ["utang", "debt"],
-  ["penghasilan", "income"],
-  ["tahun pajak", "tax year"],
-];
-
-// Substantive terms only (no grammar words — avoids broken mixed sentences)
-var WORDS = [
-  ["menyampaikan", "submit"], ["memberikan", "provide"], ["dilakukan", "carried out"],
-  ["diketahui", "it is known"], ["diminta", "requested"], ["diperlukan", "required"],
-  ["terdapat", "there is"], ["melalui", "through"], ["langsung", "directly"],
-  ["bertemu", "meeting"], ["surat", "letter"], ["dokumen", "document"],
-  ["tanggal", "date"], ["kalender", "calendar"], ["empat belas", "fourteen"],
-  ["wakil", "representative"], ["berwenang", "authorized"], ["ketentuan", "regulations"],
-  ["hak", "rights"], ["kewajiban", "obligations"], ["perwakilan", "representative"],
-  ["pengaduan", "complaints"], ["alamat", "address"], ["pimpinan", "director"],
-  ["saudara", "you"], ["kami", "we"], ["Wajib Pajak", "Taxpayer"],
-];
-
-function normalizeOcrTypos(text) {
-  return text
-    .replace(/Egualisasi/gi, 'Equalisasi')
-    .replace(/Egalisasi/gi, 'Equalisasi')
-    .replace(/diserdhkan/gi, 'diserahkan')
-    .replace(/danpenjelasan/gi, 'dan penjelasan')
-    .replace(/OR Code/gi, 'QR Code')
-    .replace(/memberikan-penjelasan/gi, 'memberikan penjelasan')
-    .replace(/data dan\/atau\s*—/g, 'data dan/atau')
-    .replace(/Saudara\.\s+hendak/g, 'Saudara hendak');
-}
-
-// ── Clean OCR noise; preserve line breaks ─────────────────────────────────
-function cleanOriginal(raw, fromOcr) {
-  var lines = normalizeOcrTypos(raw).split('\n');
-  var kept = [];
-
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].replace(/\s+/g, ' ').trim();
-    if (!line) { kept.push(''); continue; }
-    line = line
-      .replace(/^hp\s+/i, '')
-      .replace(/\s+NE\s+/g, ' ')
-      .replace(/\s+SAB\s+/g, ' ')
-      .replace(/\s+senin\s+/gi, ' ')
-      .replace(/\bDpr\b/gi, '')
-      .replace(/\bID\s+ep\s+aa\b/gi, '')
-      .replace(/^LA\s+Kp[^\s]*/i, '');
-    if (line.length <= 3 && !/\d{2}/.test(line)) continue;
-    if (/^[^a-zA-Z0-9\u00C0-\u024F]{2,}$/.test(line)) continue;
-    if (/^(hp|senin|NE|SAB|Dpr)$/i.test(line)) continue;
-    kept.push(line);
-  }
-
-  if (!fromOcr) {
-    return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-  }
-
+// ── OCR extraction WITH line boxes, pages in PARALLEL ─────────────────────
+function linesFromTessData(data) {
   var out = [];
-  var buf = '';
-  var NEW_PARA = /^(\d+\.\s|[a-i]\.\s|Nomor|Sifat|Lampiran|Hal|Yth\.|NPWP|NITKU|Gedung|Kelapa|Kota|JL\.|TELEPON|LAYANAN|EMAIL|KEMENTERIAN|DIREKTORAT|KANWIL|KANTOR|Permintaan)/i;
-
-  for (var j = 0; j < kept.length; j++) {
-    var ln = kept[j];
-    if (!ln) {
-      if (buf) { out.push(buf); buf = ''; }
-      out.push('');
-      continue;
-    }
-    if (!buf) { buf = ln; continue; }
-    if (NEW_PARA.test(ln)) {
-      out.push(buf); buf = ln;
-    } else if (/[.!?:]\s*$/.test(buf)) {
-      out.push(buf); buf = ln;
-    } else if (buf.endsWith('-')) {
-      buf = buf.slice(0, -1) + ln;
-    } else {
-      buf = buf + ' ' + ln;
-    }
+  function push(l) {
+    var t = (l.text || '').replace(/\s+/g, ' ').trim();
+    if (t && l.bbox) out.push({ x0: l.bbox.x0, y0: l.bbox.y0, x1: l.bbox.x1, y1: l.bbox.y1, text: t });
   }
-  if (buf) out.push(buf);
-
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-function escapeRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function applyReplacements(text, pairs, ignoreCase) {
-  var sorted = pairs.slice().sort(function(a, b) { return b[0].length - a[0].length; });
-  var out = text;
-  for (var i = 0; i < sorted.length; i++) {
-    var from = sorted[i][0];
-    var to = sorted[i][1];
-    if (ignoreCase) {
-      var re = new RegExp(escapeRegex(from), 'gi');
-      out = out.replace(re, to);
-    } else if (out.indexOf(from) !== -1) {
-      out = out.split(from).join(to);
-    }
+  if (data.blocks && data.blocks.length) {
+    data.blocks.forEach(function(b) {
+      (b.paragraphs || []).forEach(function(p) { (p.lines || []).forEach(push); });
+    });
+  } else if (data.lines && data.lines.length) {
+    data.lines.forEach(push);
   }
   return out;
 }
 
-// ── Translate full document (paragraph anchors first) ───────────────────
-function translateToEnglish(text) {
-  var result = applyReplacements(text, KNOWN, true);
-  result = applyReplacements(result, PHRASES, false);
-  result = applyReplacements(result, WORDS, false);
-  return result;
+async function ocrAllPages(pages, ocrLang) {
+  var sched = await getScheduler(ocrLang, pages.length);
+  addLog('OCR running on ' + pages.length + ' page(s) in parallel…', 'ocr');
+  var done = 0;
+  await Promise.all(pages.map(function(pg, idx) {
+    var job = function() {
+      return sched.addJob('recognize', pg.dataUrl, {}, { text: true, blocks: true });
+    };
+    return job().catch(function(e1) {
+      addLog('Page ' + (idx + 1) + ' retry (' + e1.message + ')…', 'warn');
+      return job();
+    }).then(function(res) {
+      pg.lines = linesFromTessData(res.data);
+      done++;
+      setProgress(30 + (done / pages.length) * 40, 'OCR ' + done + '/' + pages.length + ' pages done');
+      addLog('Page ' + (idx + 1) + ': ' + pg.lines.length + ' lines', 'ok');
+    });
+  }));
 }
 
-function translate(text, tgtLang) {
-  if (tgtLang.indexOf('English') === 0) return translateToEnglish(text);
-  return '[Note: Offline translation supports English only.]\n\n' + translateToEnglish(text);
+// ═══════════════════════════════════════════════════════════════════════════
+// TRANSLATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Offline dictionary (kept from v2 — used when Online translation is off
+// or the network fails). Full-sentence anchors first, then phrases.
+var KNOWN = [
+  ["Kami mengucapkan terima kasih", "We extend our gratitude and appreciation for your participation and commitment in fulfilling your/your company's tax obligations thus far."],
+  ["Menindaklanjuti data pada administrasi Direktorat Jenderal Pajak", "Following up on the data in the administration of the Directorate General of Taxes, we hereby convey the following matters."],
+  ["Berdasarkan penelitian terhadap data", "Based on an examination of the data and/or information we have and/or obtained, it is known that:"],
+  ["Equalisasi biaya gaji yang perlu dikonfirmasi", "There is a Salary Expense Equalization that needs to be confirmed"],
+  ["Equalisasi Biaya Jasa Konstruksi yang perlu dikonfirmasi", "There is a Construction Service Expense Equalization that needs to be confirmed"],
+  ["Equalisasi biaya jasa yang perlu dikonfirmasi", "There is a Service Fee Equalization that needs to be confirmed"],
+  ["Memperhatikan hal di atas", "In view of the above, we request that you or an authorized representative provide us with an explanation within 14 (fourteen) calendar days from the date of this letter."],
+  ["Penjelasan atas data dan/atau keterangan di atas dapat dilakukan", "Explanations may be submitted in writing, in an in-person meeting, or via audiovisual media."],
+  ["Penjelasan secara tertulis dapat berupa surat", "A written explanation may be a letter addressed to the Head of the Tax Service Office (KPP)."],
+  ["Dalam hal Saudara hendak menyampaikan penjelasan", "Should you wish to provide an explanation or require further information, you may contact the Account Representative below."],
+  ["Kepedulian dan peran aktif Saudara", "Your concern and active role in fulfilling your tax obligations are greatly appreciated."],
+  ["Atas perhatian dan kerja sama Saudara", "We thank you for your attention and cooperation."],
+  ["Dokumen ini dikeluarkan secara elektronik", "This document was issued electronically and does not require a wet signature or stamp."],
+  ["Validasi terhadap dokumen ini", "This document can be validated by scanning the QR Code with the M-Pajak app."],
+  ["Ditandatangani secara elektronik", "Signed electronically"]
+];
+var PHRASES = [
+  ["KEMENTERIAN KEUANGAN REPUBLIK INDONESIA", "MINISTRY OF FINANCE OF THE REPUBLIC OF INDONESIA"],
+  ["DIREKTORAT JENDERAL PAJAK", "DIRECTORATE GENERAL OF TAXES"],
+  ["KANTOR PELAYANAN PAJAK PRATAMA", "PRIMARY TAX SERVICE OFFICE"],
+  ["Permintaan Penjelasan atas Data", "Request for Explanation of Data and/or Information"],
+  ["Yth. Pimpinan", "To the Director of"], ["Yth.", "To"],
+  ["Nomor", "Number"], ["Sifat", "Nature"], ["Rahasia", "Confidential"],
+  ["Lampiran", "Attachment"], ["Satu set", "One set"], ["Hal :", "Subject :"], ["Hal:", "Subject:"],
+  ["dan/atau", "and/or"], ["Wajib Pajak", "Taxpayer"], ["wajib pajak", "taxpayer"],
+  ["Kepala Kantor", "Head of Office"], ["Kepala", "Head of"], ["Seksi Pengawasan", "Supervision Section"],
+  ["tahun pajak", "tax year"], ["aktiva tetap", "fixed assets"], ["hutang pajak", "tax payable"],
+  ["terima kasih", "thank you"], ["kerja sama", "cooperation"], ["secara elektronik", "electronically"],
+  ["Republik Indonesia", "Republic of Indonesia"], ["Telepon", "Phone"], ["telepon", "phone"], ["surel", "email"], ["laman", "website"]
+];
+var WORDS = [
+  ["penjelasan", "explanation"], ["keterangan", "information"], ["berdasarkan", "based on"],
+  ["penelitian", "examination"], ["dikonfirmasi", "to be confirmed"], ["Equalisasi", "Equalization"],
+  ["biaya", "expense"], ["gaji", "salary"], ["jasa", "service"], ["konstruksi", "construction"],
+  ["persediaan", "inventory"], ["neraca", "balance sheet"], ["utang", "debt"], ["penghasilan", "income"],
+  ["surat", "letter"], ["dokumen", "document"], ["tanggal", "date"], ["pegawai", "employee"],
+  ["saudara", "you"], ["kami", "we"], ["pengaduan", "complaints"], ["alamat", "address"]
+];
+
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function applyReplacements(text, pairs, ignoreCase) {
+  var sorted = pairs.slice().sort(function(a, b) { return b[0].length - a[0].length; });
+  var out = text;
+  for (var i = 0; i < sorted.length; i++) {
+    if (ignoreCase) out = out.replace(new RegExp(escapeRegex(sorted[i][0]), 'gi'), sorted[i][1]);
+    else if (out.indexOf(sorted[i][0]) !== -1) out = out.split(sorted[i][0]).join(sorted[i][1]);
+  }
+  return out;
+}
+function normalizeOcrTypos(t) {
+  return t.replace(/Egua?lisasi/gi, 'Equalisasi')
+          .replace(/OR Code/gi, 'QR Code')
+          .replace(/danpenjelasan/gi, 'dan penjelasan');
+}
+function dictTranslateLine(line) {
+  // If a full-sentence anchor matches, use the clean known translation.
+  var norm = normalizeOcrTypos(line);
+  for (var i = 0; i < KNOWN.length; i++) {
+    if (norm.toLowerCase().indexOf(KNOWN[i][0].toLowerCase()) !== -1) return KNOWN[i][1];
+  }
+  var out = applyReplacements(norm, PHRASES, false);
+  out = applyReplacements(out, WORDS, false);
+  return out;
 }
 
-// ── Build a single-language PDF (simple layout, preserves line order) ─────
-function buildSinglePDF(text, lang, type) {
-  var doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
-  var W = doc.internal.pageSize.getWidth();
-  var H = doc.internal.pageSize.getHeight();
-  var ML = 20, MR = 20, PW = W - ML - MR;
-  var isTrans = (type === 'translation');
-  var bodySize = isTrans ? 8.5 : 9.5;
-  var lineH = isTrans ? 4.6 : 5;
-  var y = 22;
+// Lines that shouldn't be translated at all (numbers, IDs, emails, URLs…)
+function isTranslatable(t) {
+  if (!/[A-Za-z\u00C0-\u024F]{3}/.test(t)) return false;
+  if (/^(https?:\/\/|www\.)/i.test(t)) return false;
+  if (/@/.test(t) && t.split(' ').length <= 2) return false;
+  return true;
+}
 
-  var C = isTrans
-    ? { dark: [30, 80, 55], tag: 'TRANSLATION' }
-    : { dark: [60, 90, 35], tag: 'ORIGINAL' };
+// ── Online translation (free, no key) ─────────────────────────────────────
+// Primary: Google gtx endpoint, batched (many lines per request → fast).
+// Fallback per line: MyMemory. Final fallback: offline dictionary.
+async function gtxTranslateBatch(lines, sl, tl) {
+  var q = lines.join('\n');
+  var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + sl +
+            '&tl=' + tl + '&dt=t&q=' + encodeURIComponent(q);
+  var r = await withTimeout(fetch(url), 12000, 'translation request timed out');
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  var j = await r.json();
+  var full = (j[0] || []).map(function(s) { return s[0] || ''; }).join('');
+  var parts = full.split('\n');
+  if (parts.length !== lines.length) throw new Error('line alignment lost');
+  return parts.map(function(p) { return p.trim(); });
+}
+async function myMemoryLine(line, sl, tl) {
+  var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(line) +
+            '&langpair=' + sl + '|' + tl;
+  var r = await withTimeout(fetch(url), 10000, 'timeout');
+  var j = await r.json();
+  var t = j && j.responseData && j.responseData.translatedText;
+  if (!t || /MYMEMORY WARNING|QUERY LENGTH/i.test(t)) throw new Error('mymemory failed');
+  return t;
+}
 
-  function drawFooters() {
-    var total = doc.internal.getNumberOfPages();
-    for (var p = 1; p <= total; p++) {
-      doc.setPage(p);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(150, 150, 150);
-      doc.text('PDF Translator · ' + lang, ML, H - 8);
-      doc.text(p + ' / ' + total, W - MR, H - 8, { align: 'right' });
+async function translateAllLines(pages, sl, tl, useOnline) {
+  // Collect unique translatable lines across all pages.
+  var map = {}, order = [];
+  pages.forEach(function(pg) {
+    pg.lines.forEach(function(L) {
+      var t = L.text;
+      if (!isTranslatable(t)) { L.trans = t; return; }
+      if (!(t in map)) { map[t] = null; order.push(t); }
+    });
+  });
+
+  var translated = {};
+  if (useOnline && navigator.onLine && sl !== tl) {
+    addLog('Translating ' + order.length + ' unique lines online…', 'info');
+    // Batch lines into ≤2800-char chunks.
+    var chunks = [], cur = [], curLen = 0;
+    order.forEach(function(t) {
+      if (curLen + t.length + 1 > 2800 && cur.length) { chunks.push(cur); cur = []; curLen = 0; }
+      cur.push(t); curLen += t.length + 1;
+    });
+    if (cur.length) chunks.push(cur);
+    var okOnline = true;
+    for (var c = 0; c < chunks.length; c++) {
+      try {
+        var res = await gtxTranslateBatch(chunks[c], sl, tl);
+        for (var i = 0; i < chunks[c].length; i++) translated[chunks[c][i]] = res[i];
+      } catch (e1) {
+        addLog('Batch ' + (c + 1) + ' fell back to per-line service (' + e1.message + ')', 'warn');
+        for (var k = 0; k < chunks[c].length; k++) {
+          var ln = chunks[c][k];
+          try { translated[ln] = await myMemoryLine(ln, sl, tl); }
+          catch (e2) { translated[ln] = null; okOnline = false; }
+        }
+      }
+      setProgress(70 + ((c + 1) / chunks.length) * 14, 'Translating… ' + (c + 1) + '/' + chunks.length);
+    }
+    if (!okOnline) addLog('Some lines used the offline dictionary as fallback', 'warn');
+  } else {
+    if (useOnline && !navigator.onLine) addLog('You appear to be offline — using built-in dictionary', 'warn');
+    else addLog('Using built-in offline dictionary…', 'info');
+    setProgress(78, 'Translating (offline)…');
+  }
+
+  // Fill gaps with the dictionary (English target only — otherwise keep original).
+  pages.forEach(function(pg) {
+    pg.lines.forEach(function(L) {
+      if (L.trans != null) return;
+      var t = translated[L.text];
+      if (t) { L.trans = t; return; }
+      L.trans = (tl === 'en') ? dictTranslateLine(L.text) : L.text;
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PDF OUTPUT — layout preserved
+// ═══════════════════════════════════════════════════════════════════════════
+// The translated PDF is the original page image with each recognized text
+// line whited out and the translation drawn in the same box, auto-fitted.
+function buildOverlayPDF(pages) {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = null;
+  for (var p = 0; p < pages.length; p++) {
+    var pg = pages[p];
+    var wmm = pg.wPx / pg.scale * PT2MM;
+    var hmm = pg.hPx / pg.scale * PT2MM;
+    var orient = wmm > hmm ? 'l' : 'p';
+    if (!doc) doc = new jsPDF({ unit: 'mm', format: [wmm, hmm], orientation: orient, compress: true });
+    else doc.addPage([wmm, hmm], orient);
+    doc.addImage(pg.dataUrl, 'JPEG', 0, 0, wmm, hmm);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(20, 20, 20);
+
+    var pxmm = PT2MM / pg.scale; // px → mm
+    for (var li = 0; li < pg.lines.length; li++) {
+      var L = pg.lines[li];
+      if (!L.trans || L.trans === L.text) continue; // unchanged → keep original pixels
+      var x = L.x0 * pxmm, y = L.y0 * pxmm;
+      var w = (L.x1 - L.x0) * pxmm, h = (L.y1 - L.y0) * pxmm;
+      if (w < 2 || h < 1) continue;
+
+      // white-out the original line (small padding to cover anti-aliasing)
+      doc.setFillColor(255, 255, 255);
+      doc.rect(x - 0.4, y - 0.4, w + 0.8, h + 0.8, 'F');
+
+      // fit the translation into the box: shrink font / wrap as needed
+      var fs = Math.min(14, (h / PT2MM) * 0.82);
+      var wrapped;
+      while (true) {
+        doc.setFontSize(fs);
+        wrapped = doc.splitTextToSize(L.trans, Math.max(w, 4));
+        var needH = wrapped.length * fs * PT2MM * 1.02;
+        if (needH <= h * 1.28 || fs <= 4.5) break;
+        fs -= 0.5;
+      }
+      var lineH = fs * PT2MM * 1.02;
+      var baseY = y + Math.min(h, lineH) * 0.82;
+      for (var wl = 0; wl < wrapped.length; wl++) {
+        doc.text(wrapped[wl], x, baseY + wl * lineH);
+      }
     }
   }
-
-  function newPage() {
-    doc.addPage();
-    y = 22;
-  }
-
-  function need(h) {
-    if (y + h > H - 14) newPage();
-  }
-
-  function writeLine(txt, bold, size) {
-    if (!txt) return;
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    doc.setFontSize(size || bodySize);
-    doc.setTextColor(30, 30, 30);
-    var wrapped = doc.splitTextToSize(txt, PW);
-    for (var i = 0; i < wrapped.length; i++) {
-      need(lineH);
-      doc.text(wrapped[i], ML, y);
-      y += lineH;
-    }
-  }
-
-  doc.setFillColor(C.dark[0], C.dark[1], C.dark[2]);
-  doc.rect(0, 0, W, 14, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(255, 255, 255);
-  doc.text('PDF Translator — ' + C.tag, ML, 9);
-  doc.setFontSize(7);
-  doc.text(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }), W - MR, 9, { align: 'right' });
-  y = 20;
-
-  var lines = text.split('\n');
-  for (var li = 0; li < lines.length; li++) {
-    var t = lines[li].trim();
-    if (!t) {
-      y += 2.5;
-      continue;
-    }
-    var isHeader = /^(KEMENTERIAN|DIREKTORAT|KANWIL|KANTOR|MINISTRY|DIRECTORATE|REGIONAL|PRIMARY|LAYANAN)/i.test(t);
-    var isSubject = /^Permintaan|^Request for/i.test(t);
-    var isNumbered = /^\d+\.\s/.test(t);
-    var isLettered = /^[a-i]\.\s/i.test(t);
-
-    if (isHeader || isSubject) {
-      y += 2;
-      writeLine(t, true, 9);
-      y += 1;
-    } else if (isNumbered) {
-      y += 2;
-      writeLine(t, true, bodySize);
-    } else if (isLettered) {
-      writeLine(t, false, bodySize);
-    } else {
-      writeLine(t, false, bodySize);
-    }
-  }
-
-  drawFooters();
   return doc;
 }
 
 function triggerDownload(blob, filename) {
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
 }
-
 ge('btnDlOrig').addEventListener('click', function() {
   if (blobOrig && selectedFile) {
-    var base = selectedFile.name.replace(/\.pdf$/i, '');
-    triggerDownload(blobOrig, base + '_original_' + srcLangSel.value.split(' ')[0] + '.pdf');
+    triggerDownload(blobOrig, selectedFile.name.replace(/\.pdf$/i, '') + '_original.pdf');
   }
 });
 ge('btnDlTrans').addEventListener('click', function() {
   if (blobTrans && selectedFile) {
-    var base = selectedFile.name.replace(/\.pdf$/i, '');
-    triggerDownload(blobTrans, base + '_translated_' + ge('tgtLang').value.split(' ')[0] + '.pdf');
+    var tgtShort = tgtLangSel.value.split(' ')[0];
+    triggerDownload(blobTrans, selectedFile.name.replace(/\.pdf$/i, '') + '_translated_' + tgtShort + '.pdf');
   }
 });
 
@@ -1030,61 +960,65 @@ btnRun.addEventListener('click', async function() {
   resetResults();
   progressWrap.classList.add('show');
   btnRun.disabled = true;
-  setProgress(0, 'Starting…');
+  setProgress(1, 'Starting…');
 
-  var srcLang = srcLangSel.value;
-  var tgtLang = ge('tgtLang').value;
-  var ocrLang = srcLangSel.options[srcLangSel.selectedIndex].getAttribute('data-ocr') || 'ind';
-  var srcShort = srcLang.split(' ')[0];
-  var tgtShort = tgtLang.split(' ')[0];
-
-  ge('dlOrigLabel').textContent = srcLang + ' (cleaned)';
-  ge('dlTransLabel').textContent = tgtLang;
+  var srcOpt = srcLangSel.options[srcLangSel.selectedIndex];
+  var tgtOpt = tgtLangSel.options[tgtLangSel.selectedIndex];
+  var ocrLang = srcOpt.getAttribute('data-ocr') || 'ind';
+  var sl = srcOpt.getAttribute('data-code') || 'id';
+  var tl = tgtOpt.getAttribute('data-code') || 'en';
+  var useOnline = onlineChk.checked;
+  ge('dlOrigLabel').textContent = srcLangSel.value.split(' (')[0] + ' (exact copy)';
+  ge('dlTransLabel').textContent = tgtLangSel.value.split(' (')[0];
 
   try {
-    var extracted;
-    var onOcrProgress = function(page, total) {
-      setProgress(28 + (page / total) * 42, 'OCR page ' + page + '/' + total + '…');
-    };
+    var t0 = performance.now();
+    setProgress(3, 'Reading PDF…');
+    var buf = await selectedFile.arrayBuffer();
+    var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    var forceOcr = ge('forceOcr').checked;
 
-    try {
-      extracted = await extractTextSmart(selectedFile, ocrLang, onOcrProgress);
-    } catch (err1) {
-      addLog('Primary extraction failed: ' + err1.message, 'warn');
-      addLog('Retrying OCR with English…', 'warn');
-      var pdf = await openPdf(selectedFile);
-      var text = await extractTextOCR(selectedFile, pdf, 'eng', onOcrProgress);
-      extracted = { text: text, method: 'ocr' };
+    // 1. Try the embedded text layer first (instant) unless Force OCR.
+    var usedOcr = false;
+    var pages = await renderPages(pdf, false);
+    if (!forceOcr) {
+      addLog('Checking for embedded text layer…', 'info');
+      for (var i = 0; i < pages.length; i++) pages[i].lines = await extractLinesTextLayer(pages[i]);
+    }
+    if (forceOcr || !textLayerIsUsable(pages)) {
+      // 2. Scanned (or forced): re-render with contrast preprocessing, then parallel OCR.
+      usedOcr = true;
+      addLog(forceOcr ? 'Force OCR enabled' : 'No usable text layer — scanned PDF detected', forceOcr ? 'ocr' : 'warn');
+      filePillBadge.textContent = 'Scanned'; filePillBadge.className = 'fp-badge scan-pdf';
+      ocrNote.classList.add('show');
+      pages = await renderPages(pdf, true);
+      await ocrAllPages(pages, ocrLang);
+    } else {
+      addLog('Text layer found — no OCR needed (fast path)', 'ok');
+      filePillBadge.textContent = 'Text PDF'; filePillBadge.className = 'fp-badge text-pdf';
+      setProgress(68, 'Text extracted');
     }
 
-    var rawText = extracted.text;
-    var usedOcr = extracted.method === 'ocr';
-    setProgress(72, 'Cleaning & translating…');
-    addLog('Cleaning text (' + (usedOcr ? 'OCR' : 'text layer') + ')…', 'info');
+    var totalLines = pages.reduce(function(a, p) { return a + p.lines.length; }, 0);
+    if (!totalLines) throw new Error('No text could be found in this PDF.');
+    addLog(totalLines + ' text lines located with positions', 'ok');
 
-    var cleanedOriginal = cleanOriginal(rawText, usedOcr);
-    var translated = translate(cleanedOriginal, tgtLang);
-    var idChars = (cleanedOriginal.match(/[a-zA-Z\u00C0-\u024F]{4,}/g) || []).length;
-    var enMarkers = (translated.match(/\b(the|and|of|to|tax|explanation|taxpayer|directorate)\b/gi) || []).length;
-    addLog('Translation complete (' + enMarkers + ' English phrases detected)', 'ok');
-    if (enMarkers < 5 && idChars > 50) {
-      addLog('Tip: If output is still mostly Indonesian, re-upload and ensure OCR runs (scanned PDF).', 'warn');
-    }
-    setProgress(85, 'Building PDFs…');
+    // 3. Translate.
+    setProgress(70, 'Translating…');
+    await translateAllLines(pages, sl, tl, useOnline);
 
-    var docOrig = buildSinglePDF(cleanedOriginal, srcLang, 'original');
-    var docTrans = buildSinglePDF(translated, tgtLang, 'translation');
-    blobOrig = docOrig.output('blob');
-    blobTrans = docTrans.output('blob');
+    // 4. Build outputs. Original = your untouched file (perfect formatting).
+    setProgress(86, 'Building PDFs…');
+    blobOrig = selectedFile; // a File is a Blob — untouched original
+    blobTrans = buildOverlayPDF(pages).output('blob');
 
-    addLog('Both PDFs ready!', 'ok');
+    var secs = ((performance.now() - t0) / 1000).toFixed(1);
+    addLog('Done in ' + secs + 's — translation drawn in-place on original layout', 'ok');
     setProgress(100, 'Done ✓');
-
-    resSub.textContent = selectedFile.name.replace(/\.pdf$/i, '') + (usedOcr ? ' · OCR' : ' · text');
+    resSub.textContent = selectedFile.name.replace(/\.pdf$/i, '') +
+      (usedOcr ? ' · OCR' : ' · text layer') + ' · ' + secs + 's';
     resultWrap.classList.add('show');
     dlRow.classList.add('show');
-    addLog('Use the buttons below to download.', 'warn');
-
   } catch (err) {
     addLog('ERROR: ' + err.message, 'err');
     setProgress(0, 'Failed — see log');
